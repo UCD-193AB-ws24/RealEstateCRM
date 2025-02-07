@@ -4,6 +4,7 @@ import { PropertyProvider } from "./contexts/PropertyContext"
 import HomeScreen from "./screens/HomeScreen"
 import PropertyDetailScreen from "./screens/PropertyDetailScreen"
 import LoginScreen from "./screens/LoginScreen"
+import MapScreen from "./screens/MapScreen"
 
 const Stack = createStackNavigator()
 
@@ -15,6 +16,13 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
+          <Stack.Screen
+            name="Map"
+            component={MapScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </PropertyProvider>
