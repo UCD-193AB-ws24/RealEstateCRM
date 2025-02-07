@@ -1,6 +1,7 @@
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native"
 import { useNavigation } from "@react-navigation/native"
 import { usePropertyContext } from "../contexts/PropertyContext"
+import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons"  // Import icons
 
 const HomeScreen = () => {
   const navigation = useNavigation()
@@ -39,7 +40,31 @@ const HomeScreen = () => {
           <Text>Sort by Bought</Text>
         </TouchableOpacity>
       </View>
+
       <FlatList data={properties} renderItem={renderProperty} keyExtractor={(item) => item.id} numColumns={2} />
+
+      {/* New Buttons Section */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("AddProperty")}>
+          <Ionicons name="add-circle-outline" size={24} color="black" />
+          <Text style={styles.buttonText}>Add an Address</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("CameraScreen")}>
+          <MaterialIcons name="camera-alt" size={24} color="black" />
+          <Text style={styles.buttonText}>Take a Picture</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("GalleryScreen")}>
+          <MaterialIcons name="photo-library" size={24} color="black" />
+          <Text style={styles.buttonText}>Use Photo Gallery</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton}>
+          <FontAwesome5 name="car" size={24} color="black" />
+          <Text style={styles.buttonText}>Driving for Dollars</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -89,7 +114,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#ddd",
     borderRadius: 5,
   },
+  buttonContainer: {
+    marginTop: 20,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-around",
+  },
+  actionButton: {
+    width: "45%",
+    backgroundColor: "#f0f0f0",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  buttonText: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
 })
 
 export default HomeScreen
-
