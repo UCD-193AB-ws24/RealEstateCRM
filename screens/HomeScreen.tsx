@@ -1,6 +1,7 @@
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native"
 import { useNavigation } from "@react-navigation/native"
 import { usePropertyContext } from "../contexts/PropertyContext"
+import { Ionicons } from "@expo/vector-icons"
 
 const HomeScreen = () => {
   const navigation = useNavigation()
@@ -25,6 +26,11 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.mapButton} onPress={() => navigation.navigate("Map")}>
+        <Ionicons name="map-outline" size={20} color="#666" />
+        <Text style={styles.mapButtonText}>View Map</Text>
+      </TouchableOpacity>
+
       <View style={styles.sortButtons}>
         <TouchableOpacity onPress={() => sortProperties("seen")} style={styles.sortButton}>
           <Text>Sort by Seen</Text>
@@ -48,6 +54,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
+  },
+  mapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E6E6FA",
+    padding: 12,
+    borderRadius: 25,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginLeft: 8,
+    color: "#666",
   },
   propertyItem: {
     flex: 1,
