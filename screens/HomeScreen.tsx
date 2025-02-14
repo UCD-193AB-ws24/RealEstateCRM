@@ -46,6 +46,15 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity 
+        style={styles.actionButton} 
+        onPress={() => navigation.navigate("LeadList")}
+      >
+        <Ionicons name="list" size={24} color="black" />
+        <Text style={styles.buttonText}>View Leads</Text>
+      </TouchableOpacity>
+
+
       <FlatList data={properties} renderItem={renderProperty} keyExtractor={(item) => item.id} numColumns={2} />
 
       {/* New Buttons Section */}
@@ -165,4 +174,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default HomeScreen
+export default HomeScreen;
