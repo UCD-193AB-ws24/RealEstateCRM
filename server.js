@@ -53,6 +53,24 @@ app.post("/api/leads", async (req, res) => {
   }
 });
 
+// Delete a lead (DELETE route)
+app.delete("/api/leads/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedLead = await Lead.destroy({ where: { id } });
+
+    if (deletedLead) {
+      res.json({ message: "Lead deleted successfully" });
+    } else {
+      res.status(404).json({ error: "Lead not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting lead:", error);
+    res.status(500).json({ error: "Error deleting lead" });
+  }
+});
+
+
 // Start Server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, async () => {

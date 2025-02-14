@@ -2,7 +2,8 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-const API_URL = "http://10.0.2.2:5001/api/leads"; // Adjust if using an emulator
+const API_URL = "http://localhost:5001/api/leads";
+
 
 const AddPropertyScreen = () => {
   const navigation = useNavigation();
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
   },
   addButton: {
     marginTop: 20,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#A078C4",
     padding: 15,
     borderRadius: 5,
     alignItems: "center",

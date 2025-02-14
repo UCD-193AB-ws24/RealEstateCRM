@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Alert } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch } from "react-native";
 import { Card, Button } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
 
-const API_URL = "http://10.0.2.2:5001/api/leads"; // Adjust if using an emulator
+const API_URL = "http://localhost:5001/api/leads";
 
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -14,10 +16,9 @@ export default function LeadListScreen({ navigation }) {
     const unsubscribe = navigation.addListener("focus", () => {
       fetchLeads();
     });
-  
+
     return unsubscribe;
   }, [navigation]);
-  
 
   // Fetch leads from the database
   const fetchLeads = async () => {
@@ -27,34 +28,6 @@ export default function LeadListScreen({ navigation }) {
       setLeads(data);
     } catch (error) {
       console.error("Error fetching leads:", error);
-    }
-  };
-
-  // Add a new lead to the database
-  const addLead = async () => {
-    const newLead = {
-      address: "555 New Ave",
-      city: "Davis",
-      state: "CA",
-      zip: "95616",
-      owner: "NEW OWNER",
-    };
-
-    try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newLead),
-      });
-
-      if (!response.ok) throw new Error("Failed to add lead");
-
-      const addedLead = await response.json();
-      setLeads((prevLeads) => [...prevLeads, addedLead]);
-      Alert.alert("Success", "Lead added successfully!");
-    } catch (error) {
-      console.error("Error adding lead:", error);
-      Alert.alert("Error", "Failed to add lead");
     }
   };
 
@@ -77,11 +50,10 @@ export default function LeadListScreen({ navigation }) {
         <Switch value={isMapView} onValueChange={() => setIsMapView(!isMapView)} />
       </View>
 
-      {/* Action Buttons */}
+      {/* Action Buttons (Removed Add Button) */}
       <View style={styles.buttonRow}>
         <Button mode="contained" style={styles.button}>Filters</Button>
         <Button mode="contained" style={styles.button}>Actions</Button>
-        <Button mode="contained" style={styles.addButton} onPress={addLead}>+ Add</Button>
         <Button mode="contained" style={styles.button}>Export</Button>
       </View>
 
@@ -121,9 +93,9 @@ const styles = StyleSheet.create({
   toggleText: { fontSize: 14, marginRight: 5, fontWeight: "bold" },
   buttonRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
   button: { backgroundColor: "#A078C4", borderRadius: 5, maxWidth: 100, height: 40 },
-  addButton: { backgroundColor: "#A078C4", paddingHorizontal: 5, borderRadius: 5, maxWidth: 100, height: 40 },
   card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
   address: { fontSize: 16, fontWeight: "bold" },
   mapPlaceholder: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#EEE", borderRadius: 10 },
 });
 
+export default LeadListScreen;
