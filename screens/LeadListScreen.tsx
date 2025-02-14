@@ -3,7 +3,7 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, 
 import { Card, Button } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 
-const API_URL = "http://localhost:5001/api/leads"; // Adjust if using an emulator
+const API_URL = "http://10.0.2.2:5001/api/leads"; // Adjust if using an emulator
 
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -11,8 +11,13 @@ export default function LeadListScreen({ navigation }) {
   const [leads, setLeads] = useState([]);
 
   useEffect(() => {
-    fetchLeads();
-  }, []);
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchLeads();
+    });
+  
+    return unsubscribe;
+  }, [navigation]);
+  
 
   // Fetch leads from the database
   const fetchLeads = async () => {

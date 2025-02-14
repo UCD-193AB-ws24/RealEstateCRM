@@ -5,60 +5,36 @@ import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons"  // I
 
 const HomeScreen = () => {
   const navigation = useNavigation()
-  const { properties, sortProperties } = usePropertyContext()
-
-  const renderProperty = ({ item }) => (
-    <TouchableOpacity
-      style={styles.propertyItem}
-      onPress={() => navigation.navigate("PropertyDetail", { propertyId: item.id })}
-    >
-      <Image source={{ uri: item.images[0] }} style={styles.propertyImage} />
-      <Text style={styles.propertyAddress}>{item.address}</Text>
-      <View style={styles.tagContainer}>
-        {item.tags.map((tag, index) => (
-          <Text key={index} style={styles.tag}>
-            {tag}
-          </Text>
-        ))}
-      </View>
-    </TouchableOpacity>
-  )
+  const { sortProperties } = usePropertyContext()
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.mapButton} onPress={() => navigation.navigate("Map")}>
-        <Ionicons name="map-outline" size={20} color="#666" />
-        <Text style={styles.mapButtonText}>View Map</Text>
-      </TouchableOpacity>
-
-      <View style={styles.sortButtons}>
-        <TouchableOpacity onPress={() => sortProperties("seen")} style={styles.sortButton}>
-          <Text>Sort by Seen</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => sortProperties("contacted")} style={styles.sortButton}>
-          <Text>Sort by Contacted</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => sortProperties("in discussion")} style={styles.sortButton}>
-          <Text>Sort by In Discussion</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => sortProperties("bought")} style={styles.sortButton}>
-          <Text>Sort by Bought</Text>
-        </TouchableOpacity>
+      {/* Quick Stats Section */}
+      <View style={styles.statsContainer}>
+        <Text style={styles.statsTitle}>Quick Stats</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>50</Text>
+            <Text style={styles.statLabel}>Total Leads</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>10</Text>
+            <Text style={styles.statLabel}>Deals Closed</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>30</Text>
+            <Text style={styles.statLabel}>Properties Contacted</Text>
+          </View>
+        </View>
       </View>
 
-      <TouchableOpacity 
-        style={styles.actionButton} 
-        onPress={() => navigation.navigate("LeadList")}
-      >
-        <Ionicons name="list" size={24} color="black" />
-        <Text style={styles.buttonText}>View Leads</Text>
-      </TouchableOpacity>
-
-
-      <FlatList data={properties} renderItem={renderProperty} keyExtractor={(item) => item.id} numColumns={2} />
-
-      {/* New Buttons Section */}
+      {/* Buttons Section */}
       <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("LeadList")}>
+          <Ionicons name="list" size={24} color="black" />
+          <Text style={styles.buttonText}>View Leads</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("AddProperty")}>
           <Ionicons name="add-circle-outline" size={24} color="black" />
           <Text style={styles.buttonText}>Add an Address</Text>
@@ -74,7 +50,7 @@ const HomeScreen = () => {
           <Text style={styles.buttonText}>Use Photo Gallery</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Map")}> 
           <FontAwesome5 name="car" size={24} color="black" />
           <Text style={styles.buttonText}>Driving for Dollars</Text>
         </TouchableOpacity>
@@ -87,69 +63,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
+    backgroundColor: "#DFC5FE", 
   },
-  mapButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E6E6FA",
-    padding: 12,
-    borderRadius: 25,
-    marginBottom: 16,
+  statsContainer: {
+    backgroundColor: "#FFFFFF",
+    padding: 15,
+    borderRadius: 10,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 16,
   },
-  mapButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 8,
-    color: "#666",
-  },
-  propertyItem: {
-    flex: 1,
-    margin: 5,
-    padding: 10,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 5,
-  },
-  propertyImage: {
-    width: "100%",
-    height: 150,
-    resizeMode: "cover",
-    borderRadius: 5,
-  },
-  propertyAddress: {
-    marginTop: 5,
-    fontSize: 14,
+  statsTitle: {
+    fontSize: 18,
     fontWeight: "bold",
+    marginBottom: 10,
+    textAlign: "center",
   },
-  tagContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 5,
-  },
-  tag: {
-    backgroundColor: "#ddd",
-    padding: 3,
-    margin: 2,
-    borderRadius: 3,
-    fontSize: 12,
-  },
-  sortButtons: {
+  statsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginBottom: 10,
   },
-  sortButton: {
-    padding: 5,
-    backgroundColor: "#ddd",
-    borderRadius: 5,
+  statBox: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#A078C4",
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "#666",
   },
   buttonContainer: {
     marginTop: 20,
@@ -159,7 +106,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     width: "45%",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#A078C4",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -171,6 +118,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     fontWeight: "bold",
+    color: "white",
   },
 })
 

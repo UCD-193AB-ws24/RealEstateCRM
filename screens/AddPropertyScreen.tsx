@@ -1,66 +1,73 @@
-import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native"
-import { usePropertyContext } from "../contexts/PropertyContext"
-import { useNavigation } from "@react-navigation/native"
-import { v4 as uuidv4 } from "uuid"
+import { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+
+const API_URL = "http://10.0.2.2:5001/api/leads"; // Adjust if using an emulator
 
 const AddPropertyScreen = () => {
-  const navigation = useNavigation()
-  const { addProperty } = usePropertyContext()
+  const navigation = useNavigation();
 
-  const [address, setAddress] = useState("")
-  const [ownerName, setOwnerName] = useState("")
-  const [phone, setPhone] = useState("")
-  const [email, setEmail] = useState("")
-  const [notes, setNotes] = useState("")
-  const [status, setStatus] = useState("seen")  // Default status
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
+  const [owner, setOwner] = useState("");
 
-  const handleAddProperty = () => {
-    const newProperty = {
-      id: uuidv4(),  // Unique ID
-      address,
-      owner: { name: ownerName, phone, email },
-      notes,
-      tags: [status],
-      images: []  // No images yet
+  // Function to add property to database
+  const handleAddProperty = async () => {
+    if (!address || !city || !state || !zip || !owner) {
+      Alert.alert("Error", "Please fill in all fields.");
+      return;
     }
 
-    addProperty(newProperty)
-    navigation.goBack() // Navigate back to HomeScreen
-  }
+    const newProperty = {
+      address,
+      city,
+      state,
+      zip,
+      owner,
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProperty),
+      });
+
+      if (!response.ok) throw new Error("Failed to add property");
+
+      Alert.alert("Success", "Property added successfully!");
+      navigation.goBack(); // Navigate back to Lead List Screen
+    } catch (error) {
+      console.error("Error adding property:", error);
+      Alert.alert("Error", "Failed to add property.");
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Address</Text>
       <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Enter address" />
 
-      <Text style={styles.label}>Owner's Name</Text>
-      <TextInput style={styles.input} value={ownerName} onChangeText={setOwnerName} placeholder="Enter owner's name" />
+      <Text style={styles.label}>City</Text>
+      <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Enter city" />
 
-      <Text style={styles.label}>Phone</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Enter phone number" keyboardType="phone-pad" />
+      <Text style={styles.label}>State</Text>
+      <TextInput style={styles.input} value={state} onChangeText={setState} placeholder="Enter state" />
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Enter email" keyboardType="email-address" />
+      <Text style={styles.label}>Zip Code</Text>
+      <TextInput style={styles.input} value={zip} onChangeText={setZip} placeholder="Enter zip code" keyboardType="numeric" />
 
-      <Text style={styles.label}>Notes</Text>
-      <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="Enter notes" multiline />
-
-      <Text style={styles.label}>Status</Text>
-      <View style={styles.buttonGroup}>
-        {["seen", "contacted", "in discussion", "bought"].map((tag) => (
-          <TouchableOpacity key={tag} style={[styles.tagButton, status === tag && styles.activeTag]} onPress={() => setStatus(tag)}>
-            <Text>{tag}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Text style={styles.label}>Owner</Text>
+      <TextInput style={styles.input} value={owner} onChangeText={setOwner} placeholder="Enter owner's name" />
 
       <TouchableOpacity style={styles.addButton} onPress={handleAddProperty}>
         <Text style={styles.addButtonText}>Add Property</Text>
       </TouchableOpacity>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -78,19 +85,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginTop: 5,
   },
-  buttonGroup: {
-    flexDirection: "row",
-    marginVertical: 10,
-  },
-  tagButton: {
-    padding: 8,
-    backgroundColor: "#ddd",
-    marginHorizontal: 5,
-    borderRadius: 5,
-  },
-  activeTag: {
-    backgroundColor: "#007AFF",
-  },
   addButton: {
     marginTop: 20,
     backgroundColor: "#007AFF",
@@ -102,6 +96,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
   },
-})
+});
 
-export default AddPropertyScreen
+export default AddPropertyScreen;
