@@ -11,25 +11,92 @@ export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapView, setIsMapView] = useState(false);
   const [leads, setLeads] = useState([]);
+  const [region, setRegion] = useState({
+    latitude: 38.5449, // Default to Davis, CA
+    longitude: -121.7405,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       fetchLeads();
+      getUserLocation();
     });
 
     return unsubscribe;
   }, [navigation]);
 
-  // Fetch leads from the database
+  
   const fetchLeads = async () => {
     try {
       const response = await fetch(API_URL);
       const data = await response.json();
-      setLeads(data);
+      console.log("Fetched leads:", data);
+  
+      // Convert addresses to lat/lng
+      const leadsWithCoordinates = await Promise.all(
+        data.map(async (lead) => {
+          let geocode = await Location.geocodeAsync(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
+          if (geocode.length > 0) {
+            return { ...lead, latitude: geocode[0].latitude, longitude: geocode[0].longitude };
+          } else {
+            return lead; // Keep the lead if geocoding fails
+          }
+        })
+      );
+  
+      setLeads(leadsWithCoordinates);
+  
+      if (leadsWithCoordinates.length > 0) {
+        setRegion({
+          latitude: leadsWithCoordinates[0].latitude,
+          longitude: leadsWithCoordinates[0].longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      }
     } catch (error) {
       console.error("Error fetching leads:", error);
     }
   };
+  
+
+
+  const getUserLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        console.warn("Location permission denied, using default Davis location.");
+        return;
+      }
+  
+      let location = await Location.getCurrentPositionAsync({});
+  
+      // Check if running in a simulator
+      const isSimulator = location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
+  
+      if (isSimulator) {
+        console.warn("Simulator detected. Forcing location to Davis, CA.");
+        setRegion({
+          latitude: 38.5449,
+          longitude: -121.7405,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } else {
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      }
+    } catch (error) {
+      console.error("Error getting user location:", error);
+    }
+  };
+  
 
   const filteredLeads = leads.filter((lead) =>
     lead.address.toLowerCase().includes(searchQuery.toLowerCase())
@@ -37,7 +104,6 @@ export default function LeadListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar with Toggle */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="black" style={styles.searchIcon} />
         <TextInput
@@ -50,18 +116,16 @@ export default function LeadListScreen({ navigation }) {
         <Switch value={isMapView} onValueChange={() => setIsMapView(!isMapView)} />
       </View>
 
-      {/* Action Buttons (Removed Add Button) */}
       <View style={styles.buttonRow}>
         <Button mode="contained" style={styles.button}>Filters</Button>
         <Button mode="contained" style={styles.button}>Actions</Button>
         <Button mode="contained" style={styles.button}>Export</Button>
       </View>
 
-      {/* List of Leads */}
-      {!isMapView && (
+      {!isMapView ? (
         <FlatList
           data={filteredLeads}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => navigation.navigate("LeadDetails", { lead: item })}>
               <Card style={styles.card}>
@@ -74,12 +138,19 @@ export default function LeadListScreen({ navigation }) {
             </TouchableOpacity>
           )}
         />
-      )}
-
-      {isMapView && (
-        <View style={styles.mapPlaceholder}>
-          <Text style={{ fontSize: 18 }}>🗺️ Map View Placeholder</Text>
-        </View>
+      ) : (
+        <MapView style={styles.map} region={region} showsUserLocation={true}>
+          {filteredLeads.map((lead, index) => (
+            lead.latitude && lead.longitude && (
+              <Marker
+                key={index}
+                coordinate={{ latitude: lead.latitude, longitude: lead.longitude }}
+                title={lead.address}
+                description={`${lead.city}, ${lead.state} ${lead.zip}`}
+              />
+            )
+          ))}
+        </MapView>
       )}
     </View>
   );
@@ -95,7 +166,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: "#A078C4", borderRadius: 5, maxWidth: 100, height: 40 },
   card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
   address: { fontSize: 16, fontWeight: "bold" },
-  mapPlaceholder: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#EEE", borderRadius: 10 },
+  map: { flex: 1, borderRadius: 10 },
 });
 
 export default LeadListScreen;
