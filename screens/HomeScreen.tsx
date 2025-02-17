@@ -40,15 +40,15 @@ const HomeScreen = () => {
           <Text style={styles.buttonText}>Add an Address</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("CameraScreen")}>
+        {/* <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("CameraScreen")}>
           <MaterialIcons name="camera-alt" size={24} color="black" />
           <Text style={styles.buttonText}>Take a Picture</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("GalleryScreen")}>
+        {/* <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("GalleryScreen")}>
           <MaterialIcons name="photo-library" size={24} color="black" />
           <Text style={styles.buttonText}>Use Photo Gallery</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Map")}> 
           <FontAwesome5 name="car" size={24} color="black" />

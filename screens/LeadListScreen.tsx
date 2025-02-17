@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image } from "react-native";
 import { Card, Button } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
 const API_URL = "http://localhost:5001/api/leads";
+const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
 
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +59,41 @@ export default function LeadListScreen({ navigation }) {
       }
     } catch (error) {
       console.error("Error fetching leads:", error);
+    }
+  };
+  
+  const uploadImage = async (uri, address, city, state, zip, owner) => {
+    let formData = new FormData();
+  
+    formData.append("file", {
+      uri,
+      name: "property.jpg",
+      type: "image/jpeg",
+    });
+  
+    // ✅ FIX: Explicitly append text fields
+    formData.append("address", String(address));
+    formData.append("city", String(city));
+    formData.append("state", String(state));
+    formData.append("zip", String(zip));
+    formData.append("owner", String(owner));
+  
+    try {
+      let response = await fetch(IMAGE_UPLOAD_URL, {
+        method: "POST",
+        body: formData,
+        headers: {
+          // ⚠️ DO NOT manually set "Content-Type" for multipart/form-data
+        },
+      });
+  
+      let data = await response.json();
+      if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
+  
+      return data.imageUrl;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      return null;
     }
   };
   
@@ -133,6 +169,9 @@ export default function LeadListScreen({ navigation }) {
                   <Text style={styles.address}>{item.address}</Text>
                   <Text>{item.city}, {item.state} {item.zip}</Text>
                   <Text>Owner: {item.owner}</Text>
+                  {item.image_url ? (
+                    <Image source={{ uri: item.image_url }} style={styles.leadImage} />
+                  ) : null}
                 </Card.Content>
               </Card>
             </TouchableOpacity>
@@ -167,6 +206,12 @@ const styles = StyleSheet.create({
   card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
   address: { fontSize: 16, fontWeight: "bold" },
   map: { flex: 1, borderRadius: 10 },
+  leadImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    marginTop: 10,
+  },
 });
 
 export default LeadListScreen;

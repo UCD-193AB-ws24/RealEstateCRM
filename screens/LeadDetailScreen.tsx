@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
 import { Card, Button } from "react-native-paper";
 
 const API_URL = "http://localhost:5001/api/leads"; // Ensure this matches your backend
@@ -28,6 +28,9 @@ export default function LeadDetailScreen({ route, navigation }) {
     <View style={styles.container}>
       <Card>
         <Card.Content>
+          {lead.image_url ? (
+            <Image source={{ uri: lead.image_url }} style={styles.leadImage} />
+          ) : null}
           <Text style={styles.address}>{lead.address}</Text>
           <Text>City: {lead.city}</Text>
           <Text>State: {lead.state}</Text>
@@ -58,5 +61,11 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  leadImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    marginTop: 10,
   },
 });
