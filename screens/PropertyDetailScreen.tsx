@@ -126,5 +126,5 @@ const styles = StyleSheet.create({
   },
 })
 
-export default PropertyDetailScreen
+export default PropertyDetailScreen;
 
