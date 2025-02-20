@@ -4,6 +4,7 @@ import { Card, Button } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const API_URL = "http://localhost:5001/api/leads";
 const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
@@ -139,63 +140,66 @@ export default function LeadListScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="black" style={styles.searchIcon} />
-        <TextInput
-          placeholder="Search Leads..."
-          style={styles.searchInput}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <Text style={styles.toggleText}>{isMapView ? "Map" : "List"}</Text>
-        <Switch value={isMapView} onValueChange={() => setIsMapView(!isMapView)} />
-      </View>
+    <SafeAreaView style={styles.safeContainer}>
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="black" style={styles.searchIcon} />
+          <TextInput
+            placeholder="Search Leads..."
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          <Text style={styles.toggleText}>{isMapView ? "Map" : "List"}</Text>
+          <Switch value={isMapView} onValueChange={() => setIsMapView(!isMapView)} />
+        </View>
 
-      <View style={styles.buttonRow}>
-        <Button mode="contained" style={styles.button}>Filters</Button>
-        <Button mode="contained" style={styles.button}>Actions</Button>
-        <Button mode="contained" style={styles.button}>Export</Button>
-      </View>
+        <View style={styles.buttonRow}>
+          <Button mode="contained" style={styles.button}>Filters</Button>
+          <Button mode="contained" style={styles.button}>Actions</Button>
+          <Button mode="contained" style={styles.button}>Export</Button>
+        </View>
 
-      {!isMapView ? (
-        <FlatList
-          data={filteredLeads}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => navigation.navigate("LeadDetails", { lead: item })}>
-              <Card style={styles.card}>
-                <Card.Content>
-                  <Text style={styles.address}>{item.address}</Text>
-                  <Text>{item.city}, {item.state} {item.zip}</Text>
+        {!isMapView ? (
+          <FlatList
+            data={filteredLeads}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity onPress={() => navigation.navigate("LeadDetails", { lead: item })}>
+                <Card style={styles.card}>
+                  {item.images.length > 0 ? (
+                    <Image source={{ uri: item.images[0] }} style={styles.leadImage} />
+                  ) : (
+                    <MaterialIcons name="house" size={100} color="#ccc" style={styles.houseIcon} />
+                  )}
+                  <Text style={styles.address}>{item.address.split(",")[0]}</Text>
                   <Text>Owner: {item.owner}</Text>
-                  {item.image_url ? (
-                    <Image source={{ uri: item.image_url }} style={styles.leadImage} />
-                  ) : null}
-                </Card.Content>
-              </Card>
-            </TouchableOpacity>
-          )}
-        />
-      ) : (
-        <MapView style={styles.map} region={region} showsUserLocation={true}>
-          {filteredLeads.map((lead, index) => (
-            lead.latitude && lead.longitude && (
-              <Marker
-                key={index}
-                coordinate={{ latitude: lead.latitude, longitude: lead.longitude }}
-                title={lead.address}
-                description={`${lead.city}, ${lead.state} ${lead.zip}`}
-              />
-            )
-          ))}
-        </MapView>
-      )}
-    </View>
+                  <Text>Status: {item.status}</Text>
+                </Card>
+              </TouchableOpacity>
+            )}
+          />
+        ) : (
+          <MapView style={styles.map} region={region} showsUserLocation={true}>
+            {filteredLeads.map((lead, index) => (
+              lead.latitude && lead.longitude && (
+                <Marker
+                  key={index}
+                  coordinate={{ latitude: lead.latitude, longitude: lead.longitude }}
+                  title={lead.address}
+                  description={`${lead.city}, ${lead.state} ${lead.zip}`}
+                />
+              )
+            ))}
+          </MapView>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
   container: { flex: 1, padding: 10, backgroundColor: "#DFC5FE" },
   searchContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10, backgroundColor: "#fff", padding: 10, borderRadius: 10 },
   searchIcon: { marginRight: 8 },
@@ -204,7 +208,7 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
   button: { backgroundColor: "#A078C4", borderRadius: 5, maxWidth: 100, height: 40 },
   card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
-  address: { fontSize: 16, fontWeight: "bold" },
+  address: { fontSize: 16, fontWeight: "bold", marginTop: 5 },
   map: { flex: 1, borderRadius: 10 },
   leadImage: {
     width: "100%",
@@ -212,6 +216,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
   },
+  houseIcon: { alignSelf: "center", marginVertical: 20 },
+  noImageText: { fontSize: 14, color: "gray", textAlign: "center", marginTop: 10 },
 });
 
 export default LeadListScreen;

@@ -1,13 +1,15 @@
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native"
-import { useNavigation } from "@react-navigation/native"
-import { usePropertyContext } from "../contexts/PropertyContext"
-import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons"  // Import icons
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { usePropertyContext } from "../contexts/PropertyContext";
+import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const HomeScreen = () => {
   const navigation = useNavigation()
   const { sortProperties } = usePropertyContext()
 
   return (
+    <SafeAreaView style={styles.safeContainer}>
     <View style={styles.container}>
       {/* Quick Stats Section */}
       <View style={styles.statsContainer}>
@@ -29,11 +31,11 @@ const HomeScreen = () => {
       </View>
 
       {/* Buttons Section */}
-      <View style={styles.buttonContainer}>
+      {/* <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("LeadList")}>
           <Ionicons name="list" size={24} color="black" />
           <Text style={styles.buttonText}>View Leads</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("AddProperty")}>
           <Ionicons name="add-circle-outline" size={24} color="black" />
@@ -50,16 +52,18 @@ const HomeScreen = () => {
           <Text style={styles.buttonText}>Use Photo Gallery</Text>
         </TouchableOpacity> */}
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Map")}> 
+        {/* <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Map")}> 
           <FontAwesome5 name="car" size={24} color="black" />
           <Text style={styles.buttonText}>Driving for Dollars</Text>
-        </TouchableOpacity>
-      </View>
+        </TouchableOpacity> */}
+      {/* </View> */}
     </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
+  safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
   container: {
     flex: 1,
     padding: 10,

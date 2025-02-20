@@ -28,6 +28,7 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
+
 const upload = multer({ storage });
 
 // Connect to PostgreSQL with Sequelize
@@ -46,7 +47,8 @@ const Lead = sequelize.define(
     state: { type: DataTypes.STRING, allowNull: false },
     zip: { type: DataTypes.STRING, allowNull: false },
     owner: { type: DataTypes.STRING, allowNull: false },
-    image_url: { type: DataTypes.STRING, allowNull: true },
+    images: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Lead" },
   },
   { tableName: "leads", timestamps: false }
 );
@@ -54,8 +56,16 @@ const Lead = sequelize.define(
 // Fetch all leads (GET route)
 app.get("/api/leads", async (req, res) => {
   try {
-    const leads = await Lead.findAll({ attributes: ["id", "address", "city", "state", "zip", "owner", "image_url"] });
-    res.json(leads);
+    const leads = await Lead.findAll({
+      attributes: ["id", "address", "city", "state", "zip", "owner", "images", "status"], // Ensure "images" is included
+    });
+
+    const formattedLeads = leads.map((lead) => ({
+      ...lead.toJSON(),
+      images: lead.images || [], // Ensure images is always an array
+    }));
+
+    res.json(formattedLeads);
   } catch (error) {
     console.error("Error fetching leads:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -65,7 +75,7 @@ app.get("/api/leads", async (req, res) => {
 // Add a new lead without an image (POST route)
 app.post("/api/leads", async (req, res) => {
   try {
-    const { address, city, state, zip, owner, image_url } = req.body;
+    const { address, city, state, zip, owner, images, status } = req.body;
 
     console.log("📥 Received lead data:", req.body);
 
@@ -75,7 +85,7 @@ app.post("/api/leads", async (req, res) => {
     }
 
     // Save lead in DB
-    const newLead = await Lead.create({ address, city, state, zip, owner, image_url });
+    const newLead = await Lead.create({ address, city, state, zip, owner, images, status: status || "Lead" });
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -84,6 +94,26 @@ app.post("/api/leads", async (req, res) => {
   }
 });
 
+app.put("/api/leads/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { address, city, state, zip, owner, status } = req.body;
+
+    const updatedLead = await Lead.update(
+      { address, city, state, zip, owner, status },
+      { where: { id } }
+    );
+
+    if (updatedLead[0] === 0) {
+      return res.status(404).json({ error: "Lead not found" });
+    }
+
+    res.json({ message: "Lead updated successfully" });
+  } catch (error) {
+    console.error("Error updating lead:", error);
+    res.status(500).json({ error: "Error updating lead" });
+  }
+});
 
 // Delete a lead (DELETE route)
 app.delete("/api/leads/:id", async (req, res) => {
@@ -101,15 +131,15 @@ app.delete("/api/leads/:id", async (req, res) => {
     res.status(500).json({ error: "Error deleting lead" });
   }
 });
-
+    
 // Upload Image and Add Property
-app.post("/api/upload", upload.single("file"), async (req, res) => {
+app.post("/api/upload", upload.array("files", 5), async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const imageUrl = `http://localhost:5001/uploads/${req.file.filename}`;
+    const imageUrls = req.files.map(file => `http://localhost:5001/uploads/${file.filename}` );
     const { address, city, state, zip, owner } = req.body;
 
     console.log("received form data:", req.body);
@@ -120,14 +150,14 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     }
 
     // Save lead with image URL
-    const newLead = await Lead.create({ address, city, state, zip, owner, image_url: imageUrl });
+    const newLead = await Lead.create({ address, city, state, zip, owner, images: imageUrls });
 
     console.log("New lead saved:", newLead);
 
-    res.status(201).json({ imageUrl });
+    res.status(201).json(newLead);
   } catch (error) {
-    console.error("Error uploading image:", error);
-    res.status(500).json({ error: "Error uploading image" });
+    console.error("Error uploading images:", error);
+    res.status(500).json({ error: "Error uploading images" });
   }
 });
 
