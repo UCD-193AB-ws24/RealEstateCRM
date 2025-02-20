@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
@@ -11,7 +11,8 @@ const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 const AddPropertyScreen = () => {
   const navigation = useNavigation();
 
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]);
+  const [firstImageUri, setFirstImageUri] = useState(null);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -20,37 +21,59 @@ const AddPropertyScreen = () => {
 
   const pickImage = async (useCamera = false) => {
     let result;
+
     if (useCamera) {
       result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
         quality: 1,
         exif: true,  // get image metadata
       });
     } else {
       result = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: true,
+        allowsMultipleSelection: true,
         quality: 1,
         exif: true,
       });
     }
 
-    if (!result.cancelled) {
-      setImage(result.uri);
-      if (result.exif && result.exif.GPSLatitude && result.exif.GPSLongitude) {
-        getAddressFromCoords(result.exif.GPSLatitude, result.exif.GPSLongitude);
-      } else {
-        Alert.alert("No GPS Data", "Location data not found in image metadata.");
+    if (!result.canceled) {
+      const newImages = result.assets ? result.assets.map(img => img.uri) : [result.uri];
+      setImages([...images, ...newImages]);
+
+      // Use first image's metadata for autofill if no previous autofill
+      if (!firstImageUri && result.assets && result.assets.length > 0) {
+        setFirstImageUri(result.assets[0].uri);
+        const { GPSLatitude, GPSLongitude } = result.assets[0].exif || {};
+        if (GPSLatitude && GPSLongitude) {
+          getAddressFromCoords(GPSLatitude, GPSLongitude);
+        }
       }
     }
   };
 
   const getAddressFromCoords = async (latitude, longitude) => {
-    let location = await Location.reverseGeocodeAsync({ latitude, longitude });
-    if (location.length > 0) {
-      setAddress(location[0].street || "");
-      setCity(location[0].city || "");
-      setState(location[0].region || "");
-      setZip(location[0].postalCode || "");
+    try {
+      let location = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (location.length > 0) {
+        setAddress(location[0].street || "");
+        setCity(location[0].city || "");
+        setState(location[0].region || "");
+        setZip(location[0].postalCode || "");
+      }
+    } catch (error) {
+      console.error("Error fetching address:", error);
+    }
+  };
+
+  const removeImage = (index) => {
+    const updatedImages = images.filter((_, i) => i !== index);
+    setImages(updatedImages);
+
+    // If removed image was the first image, use the next image for autofill
+    if (firstImageUri === images[index] && updatedImages.length > 0) {
+      setFirstImageUri(updatedImages[0]);
+      // Here we assume metadata is available for autofill; ideally, we'd check for exif data
+    } else if (updatedImages.length === 0) {
+      setFirstImageUri(null);
     }
   };
 
@@ -82,7 +105,7 @@ const AddPropertyScreen = () => {
   
       let data = await response.json();
       console.log("server response:", data);
-      
+
       if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
   
       return data.imageUrl;
@@ -92,9 +115,6 @@ const AddPropertyScreen = () => {
     }
   };
   
-  
-  
-  
 
   // Function to add property to database
   const handleAddProperty = async () => {
@@ -103,32 +123,65 @@ const AddPropertyScreen = () => {
       return;
     }
 
-    try {
-      let imageUrl = null;
+    let imageUrls = [];
   
-      if (image) {
-        // Upload the image and create lead in one request
-        imageUrl = await uploadImage(image, address, city, state, zip, owner);
-        if (!imageUrl) {
-          throw new Error("Image upload failed.");
-        }
-        // If image upload works, lead is already added, so return early
-        Alert.alert("Success", "Property added successfully!");
-        navigation.goBack();
+    if (images.length > 0) {
+        // // Upload the image and create lead in one request
+        // imageUrl = await uploadImage(image, address, city, state, zip, owner);
+        // if (!imageUrl) {
+        //   throw new Error("Image upload failed.");
+        // }
+        // // If image upload works, lead is already added, so return early
+        // Alert.alert("Success", "Property added successfully!");
+        // navigation.goBack();
+        // return;
+
+      let formData = new FormData();
+
+      images.forEach((imgUri, index) => {
+        formData.append("files", {
+          uri: imgUri.startsWith("file://") ? imgUri : `file://${imgUri}`,
+          name: `property-${index}.jpg`,
+          type: "image/jpeg",
+        });
+      });
+
+      formData.append("address", address);
+      formData.append("city", city);
+      formData.append("state", state);
+      formData.append("zip", zip);
+      formData.append("owner", owner);
+
+      try {
+        let response = await fetch(IMAGE_UPLOAD_URL, {
+          method: "POST",
+          body: formData,
+          headers: { "Accept": "application/json" },
+        });
+
+        let data = await response.json();
+        if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
+
+        imageUrls = data.images;
+      } catch (error) {
+        console.error("Error uploading images:", error);
+        Alert.alert("Error", "Failed to upload images.");
         return;
       }
-  
-      // If no image, create the lead via /api/leads
-      const newProperty = { address, city, state, zip, owner };
-  
+    }
+
+    // If no image, create the lead via /api/leads
+    const newProperty = { address, city, state, zip, owner, images: imageUrls };
+
+    try {
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProperty),
       });
-  
+
       if (!response.ok) throw new Error("Failed to add property");
-  
+
       Alert.alert("Success", "Property added successfully!");
       navigation.goBack();
     } catch (error) {
@@ -144,10 +197,26 @@ const AddPropertyScreen = () => {
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
-        <Text style={styles.photoButtonText}>Use Photo Gallery</Text>
+        <Text style={styles.photoButtonText}>Select from Gallery</Text>
       </TouchableOpacity>
 
-      {image && <Image source={{ uri: image }} style={styles.imagePreview} />}
+      {/* {image && <Image source={{ uri: image }} style={styles.imagePreview} />} */}
+
+      {images.length > 0 && (
+        <ScrollView horizontal style={styles.imageScroll}>
+          {images.map((imgUri, index) => (
+            <View key={index} style={styles.imageContainer}>
+              <Image source={{ uri: imgUri }} style={styles.imagePreview} />
+              <TouchableOpacity 
+                style={styles.removeButton} 
+                onPress={() => removeImage(index)}
+              >
+                <Text style={styles.removeButtonText}>x</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       <Text style={styles.label}>Address</Text>
       <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Enter address" />
@@ -175,7 +244,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
   photoButtonText: { color: "white", fontSize: 16 },
-  imagePreview: { width: "100%", height: 200, borderRadius: 10, marginBottom: 10 },
+  imageScroll: { flexDirection: "row", marginBottom: 10 },
+  imageContainer: { position: "relative", marginRight: 10 },
+  imagePreview: { width: 100, height: 100, borderRadius: 10, marginBottom: 10 },
+  removeButton: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "white",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "lightgray",
+  },
+  removeButtonText: { color: "lightgray", fontSize: 18, fontWeight: "bold" },
   label: { fontSize: 16, marginTop: 10 },
   input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, marginTop: 5 },
   addButton: { marginTop: 20, backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center" },
