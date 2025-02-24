@@ -67,6 +67,7 @@ export default function App() {
           <Stack.Screen name="CameraScreen" component={CameraScreen} />
           <Stack.Screen name="GalleryScreen" component={GalleryScreen} />
           <Stack.Screen name="LeadDetails" component={LeadDetailScreen} />
+          <Stack.Screen name="LeadListScreen" component={LeadListScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PropertyProvider>

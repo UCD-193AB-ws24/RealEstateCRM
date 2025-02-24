@@ -9,6 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { ViewPropTypes } from "deprecated-react-native-prop-types";
+import LeadListScreen from "./LeadListScreen";
 
 
 const API_URL = "http://localhost:5001/api/leads";
@@ -50,6 +51,34 @@ export default function LeadDetailScreen({ route, navigation }) {
   };
 
   const saveLead = async () => {
+  try {
+    const updatedLead = { ...editableLead, status }; // Ensure status is updated
+
+    console.log("Updating lead with data:", updatedLead); // Debugging log
+
+    const response = await fetch(`${API_URL}/${lead.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedLead), // ✅ Send entire lead object
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to update lead: ${errorText}`);
+    }
+
+    setHasChanges(false);
+    navigation.navigate("LeadListScreen"); // ✅ Navigate to list view
+
+  } catch (error) {
+    console.error("Error updating lead:", error);
+    Alert.alert("Error", `Failed to update lead: ${error.message}`);
+  }
+};
+
+  
+
+  const saveChanges = async () => {
     try {
       const response = await fetch(`${API_URL}/${lead.id}`, {
         method: "PUT",
@@ -58,21 +87,21 @@ export default function LeadDetailScreen({ route, navigation }) {
       });
   
       if (!response.ok) {
-        const errorText = await response.text(); // Read error response
+        const errorText = await response.text();
         throw new Error(`Failed to update lead: ${errorText}`);
       }
   
       const updatedLead = await response.json();
       setEditableLead(updatedLead);
       setHasChanges(false);
-      setModalVisible(false);
-      navigation.goBack();
+      setModalVisible(false); // ✅ Closes modal but stays on details screen
   
     } catch (error) {
       console.error("Error updating lead:", error);
       Alert.alert("Error", `Failed to update lead: ${error.message}`);
     }
   };
+  
   
 
   const deleteLead = async () => {
@@ -160,6 +189,8 @@ export default function LeadDetailScreen({ route, navigation }) {
     }
   };
 
+
+
   const confirmDeleteLead = () => {
     Alert.alert(
       "Delete Lead?",
@@ -177,22 +208,34 @@ export default function LeadDetailScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={30} color="black" />
-      </TouchableOpacity>
+      <View style={styles.headerContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={30} color="black" />
+        </TouchableOpacity>
+
+        <Text style={styles.addressText}>
+          {editableLead.name ? editableLead.name : editableLead.address.split(",")[0]}
+        </Text>
+
+
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
+            <Ionicons name="pencil" size={24} color="black" />
+          </TouchableOpacity>
+        <TouchableOpacity style={styles.trashButton} onPress={confirmDeleteLead}>
+          <Ionicons name="trash" size={30} color="black" />
+        </TouchableOpacity>
+      </View>
 
       {/* Address & Edit Button */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <Text style={styles.addressText}>{editableLead.address.split(",")[0]}</Text>
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => setModalVisible(true)}>
             <Ionicons name="pencil" size={24} color="black" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={confirmDeleteLead} style={styles.trashIcon}>
-            <Ionicons name="trash" size={24} color="red" />
-          </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
+
 
       {/* Image Carousel with Arrows */}
       <View style={styles.carouselContainer}>
@@ -210,7 +253,7 @@ export default function LeadDetailScreen({ route, navigation }) {
             renderItem={({ item }) =>
               item === "add-new" ? (
                 <TouchableOpacity style={styles.addImageContainer} onPress={addImage}>
-                  <Ionicons name="add-circle" size={50} color="#A078C4" />
+                  <Ionicons name="add-circle" size={70} color="#A078C4" />
                 </TouchableOpacity>
               ) : (
                 <View style={styles.imageWrapper}>
@@ -293,7 +336,7 @@ export default function LeadDetailScreen({ route, navigation }) {
                 />
               </View>
             ))}
-            <Button mode="contained" onPress={saveLead} style={styles.saveButton}>
+            <Button mode="contained" onPress={saveChanges} style={styles.saveButton}>
               Save
             </Button>
           </View>
@@ -308,8 +351,25 @@ const styles = StyleSheet.create({
   safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
   scrollContainer: { padding: 15 },
   backButton: { marginTop: 10, marginLeft: 10 },
-  header: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 20 },
-  addressText: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginRight: 10 },
+  headerIcons: { flexDirection: "row", },
+  trashIcon: { paddingRight: 10 },
+  addImageContainer: {
+    width: "100%",
+    height: 250,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#DFC5FE",
+    borderRadius: 10,
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between", // ✅ Ensures proper alignment
+    paddingHorizontal: 15,
+    marginBottom: 20,
+  },
+  header: { flexDirection: "row", justifyContent: "center", alignItems: "center", },
+  addressText: { fontSize: 22, fontWeight: "bold", textAlign: "center", },
   carouselContainer: { alignItems: "center", marginVertical: 20 },
   leadImage: { width: "100%", height: 250, borderRadius: 10 },
   arrowLeft: { position: "absolute", left: 10, top: "50%", zIndex: 1 },
