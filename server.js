@@ -58,7 +58,7 @@ const Lead = sequelize.define(
 app.get("/api/leads", async (req, res) => {
   try {
     const leads = await Lead.findAll({
-      attributes: ["id", "address", "city", "state", "zip", "owner", "images", "status"], // Ensure "images" is included
+      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status"], // Ensure "images" is included
     });
 
     const formattedLeads = leads.map((lead) => ({
@@ -81,12 +81,12 @@ app.post("/api/leads", async (req, res) => {
     console.log("📥 Received lead data:", req.body);
 
     // Validate required fields
-    if (!name || !address || !city || !state || !zip || !owner) {
+    if (!address || !city || !state || !zip || !owner) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     // Save lead in DB
-    const newLead = await Lead.create({ name, address, city, state, zip, owner, images, status: status || "Lead" });
+    const newLead = await Lead.create({ name: name || null, address, city, state, zip, owner, images, status: status || "Lead" });
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -101,14 +101,17 @@ app.put("/api/leads/:id", async (req, res) => {
     const { name, address, city, state, zip, owner, status, images } = req.body;
 
     // Validate input
-    if (!name || !address || !city || !state || !zip || !owner) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+    const fieldsToUpdate = {};
+    if (name !== undefined) fieldsToUpdate.name = name;
+    if (address !== undefined) fieldsToUpdate.address = address;
+    if (city !== undefined) fieldsToUpdate.city = city;
+    if (state !== undefined) fieldsToUpdate.state = state;
+    if (zip !== undefined) fieldsToUpdate.zip = zip;
+    if (owner !== undefined) fieldsToUpdate.owner = owner;
+    if (status !== undefined) fieldsToUpdate.status = status;
+    if (images !== undefined) fieldsToUpdate.images = images;
 
-    const updatedLead = await Lead.update(
-      { name, address, city, state, zip, owner, status, images },
-      { where: { id } }
-    );
+    const updatedLead = await Lead.update(fieldsToUpdate, { where: { id } });
 
     if (updatedLead[0] === 0) {
       return res.status(404).json({ error: "Lead not found" });
@@ -143,29 +146,32 @@ app.delete("/api/leads/:id", async (req, res) => {
 });
     
 // Upload Image and Add Property
-app.post("/api/upload", upload.array("files", 5), async (req, res) => {
+app.post("/api/upload", (req, res, next) => {
+  const uploadMiddleware = req.files ? upload.array("files", 5) : upload.single("file");
+  uploadMiddleware(req, res, (err) => {
+    if (err) {
+      return res.status(500).json({ error: "Upload failed", details: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "No files uploaded" });
+    if (!req.file && (!req.files || req.files.length === 0)) {
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const imageUrls = req.files.map(file => `http://localhost:5001/uploads/${file.filename}`);
-    const { address, city, state, zip, owner } = req.body;
+    const imageUrls = req.file
+      ? [`http://localhost:5001/uploads/${req.file.filename}`] // Single file case
+      : req.files.map(file => `http://localhost:5001/uploads/${file.filename}`); // Multiple files case
 
-    console.log("Received form data:", req.body);
+    res.json({ imageUrls }); // ✅ Return images as an array
 
-    if (!address || !city || !state || !zip || !owner) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const newLead = await Lead.create({ address, city, state, zip, owner, images: imageUrls });
-
-    res.status(201).json(newLead);
   } catch (error) {
     console.error("Error uploading images:", error);
     res.status(500).json({ error: "Error uploading images" });
   }
 });
+
 
 
 

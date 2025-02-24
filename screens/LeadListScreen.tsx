@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image } from "react-native";
-import { Card, Button } from "react-native-paper";
+import { Card, Button, Menu, Divider } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DropDownPicker from "react-native-dropdown-picker";
+import { Provider } from "react-native-paper";
 
 const API_URL = "http://localhost:5001/api/leads";
 const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
@@ -19,6 +23,25 @@ export default function LeadListScreen({ navigation }) {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState(null);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [onlyWithImages, setOnlyWithImages] = useState(false);
+  const [actionsVisible, setActionsVisible] = useState(false);
+
+  const filteredLeads = leads.filter((lead) => {
+    return (
+      (!selectedStatus || lead.status === selectedStatus) &&
+      (!selectedCity || lead.city === selectedCity) &&
+      (!onlyWithImages || (lead.images && lead.images.length > 0)) &&
+      (lead.address.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())))
+    );
+  });
+  
+
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -50,17 +73,49 @@ export default function LeadListScreen({ navigation }) {
   
       setLeads(leadsWithCoordinates);
   
-      if (leadsWithCoordinates.length > 0) {
-        setRegion({
-          latitude: leadsWithCoordinates[0].latitude,
-          longitude: leadsWithCoordinates[0].longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      }
+      // if (leadsWithCoordinates.length > 0) {
+      //   setRegion({
+      //     latitude: leadsWithCoordinates[0].latitude,
+      //     longitude: leadsWithCoordinates[0].longitude,
+      //     latitudeDelta: 0.05,
+      //     longitudeDelta: 0.05,
+      //   });
+      // }
     } catch (error) {
       console.error("Error fetching leads:", error);
     }
+  };
+
+  // const filteredLeads = leads.filter((lead) => {
+  //   return (
+  //     (!selectedStatus || lead.status === selectedStatus) &&
+  //     (!selectedCity || lead.city === selectedCity) &&
+  //     (!onlyWithImages || (lead.images && lead.images.length > 0)) &&
+  //     (lead.address.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  //      (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())))
+  //   );
+  // });
+
+  const exportToCSV = async () => {
+    const csvContent = "Name,Address,City,State,Zip,Owner,Status\n" +
+      leads.map(lead =>
+        `"${lead.name || ""}","${lead.address}","${lead.city}","${lead.state}","${lead.zip}","${lead.owner || ""}","${lead.status}"`
+      ).join("\n");
+
+    const fileUri = FileSystem.documentDirectory + "leads.csv";
+    await FileSystem.writeAsStringAsync(fileUri, csvContent);
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri);
+    } else {
+      alert("CSV file saved at: " + fileUri);
+    }
+  };
+
+  const resetFilters = () => {
+    setSelectedStatus(null);
+    setSelectedCity(null);
+    setOnlyWithImages(false);
   };
   
   const uploadImage = async (uri, address, city, state, zip, owner) => {
@@ -132,11 +187,12 @@ export default function LeadListScreen({ navigation }) {
   
   
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.address.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // const filteredLeads = leads.filter((lead) =>
+  //   lead.address.toLowerCase().includes(searchQuery.toLowerCase())
+  // );
 
   return (
+    <Provider>
     <SafeAreaView style={styles.safeContainer}>
       <View style={styles.container}>
         <View style={styles.searchContainer}>
@@ -152,10 +208,67 @@ export default function LeadListScreen({ navigation }) {
         </View>
 
         <View style={styles.buttonRow}>
-          <Button mode="contained" style={styles.button}>Filters</Button>
-          <Button mode="contained" style={styles.button}>Actions</Button>
-          <Button mode="contained" style={styles.button}>Export</Button>
+          {/* 🔹 Filter Controls */}
+          <Button mode="contained" style={styles.button} onPress={() => setFiltersVisible(!filtersVisible)}>Filters</Button>
+          
+          {/* Actions Menu */}
+          <Menu
+            visible={actionsVisible}
+            onDismiss={() => setActionsVisible(false)}
+            anchor={
+              <TouchableOpacity onPress={() => setActionsVisible(true)} style={styles.iconButton}>
+                <Ionicons name="ellipsis-vertical" size={24} color="black" />
+              </TouchableOpacity>
+            }
+          >
+            <Menu.Item onPress={() => alert("Delete selected leads")} title="Delete Selected Leads" />
+            <Divider />
+            <Menu.Item onPress={() => alert("Contact Owner")} title="Contact Owner" />
+            <Divider />
+            <Menu.Item onPress={() => alert("Change Status")} title="Change Status" />
+          </Menu>
+
+          {/* Export Button */}
+          <Button mode="contained" style={styles.button} onPress={exportToCSV}>Export</Button>
         </View>
+
+        {filtersVisible && (
+          <View style={styles.filtersContainer}>
+            <DropDownPicker
+              open={statusOpen}
+              value={selectedStatus}
+              items={[
+                { label: "All", value: null },
+                { label: "Lead", value: "Lead" },
+                { label: "Contact", value: "Contact" },
+                { label: "Offer", value: "Offer" },
+                { label: "Sale", value: "Sale" },
+              ]}
+              setOpen={setStatusOpen}
+              setValue={setSelectedStatus}
+              placeholder="Filter by Status"
+            />
+
+            <DropDownPicker
+              open={cityOpen}
+              value={selectedCity}
+              items={[...new Set(leads.map((lead) => ({ label: lead.city, value: lead.city })))]}
+              setOpen={setCityOpen}
+              setValue={setSelectedCity}
+              placeholder="Filter by City"
+            />
+
+            <View style={styles.toggleContainer}>
+              <Text>Only With Images</Text>
+              <Switch value={onlyWithImages} onValueChange={setOnlyWithImages} />
+            </View>
+
+            <View style={styles.buttonRow}>
+                <Button mode="contained" onPress={() => setFiltersVisible(false)} style={styles.filterButton}>Close</Button>
+                <Button mode="contained" onPress={resetFilters} style={styles.filterButton}>Reset</Button>
+              </View>
+          </View>
+        )}
 
         {!isMapView ? (
           <FlatList
@@ -169,7 +282,9 @@ export default function LeadListScreen({ navigation }) {
                   ) : (
                     <MaterialIcons name="house" size={100} color="#ccc" style={styles.houseIcon} />
                   )}
-                  <Text style={styles.address}>{item.address.split(",")[0]}</Text>
+                  <Text style={styles.address}>
+                    {item.name ? item.name : item.address.split(",")[0]}
+                  </Text>
                   <Text>Owner: {item.owner}</Text>
                   <Text>Status: {item.status}</Text>
                 </Card>
@@ -192,6 +307,7 @@ export default function LeadListScreen({ navigation }) {
         )}
       </View>
     </SafeAreaView>
+    </Provider>
   );
 }
 
@@ -215,6 +331,25 @@ const styles = StyleSheet.create({
   },
   houseIcon: { alignSelf: "center", marginVertical: 20 },
   noImageText: { fontSize: 14, color: "gray", textAlign: "center", marginTop: 10 },
+  filterRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+  filtersContainer: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    position: "absolute",
+    top: 60,
+    left: 10,
+    right: 10,
+    zIndex: 10,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    height: 220,  // Makes it taller
+    width: "80%", // Reduces width slightly
+  },
+  filterButton: { backgroundColor: "#A078C4", borderRadius: 5, flex: 1, marginHorizontal: 5 },
 });
 
 export default LeadListScreen;
