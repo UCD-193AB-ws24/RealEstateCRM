@@ -8,6 +8,9 @@ const Lead = sequelize.define("Lead", {
   state: { type: DataTypes.STRING, allowNull: false },
   zip: { type: DataTypes.STRING, allowNull: false },
   owner: { type: DataTypes.STRING, allowNull: false },
+  images: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
+  status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Lead" },
+  notes: { type: DataTypes.STRING, allowNull: true },
 });
 
 module.exports = Lead;

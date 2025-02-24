@@ -5,7 +5,7 @@ export interface Property {
   id: string
   address: string
   images: string[]
-  tags: string[]
+  status: string
   notes: string
 }
 
@@ -14,7 +14,7 @@ interface PropertyContextType {
   addProperty: (property: Property) => void
   updateProperty: (id: string, updates: Partial<Property>) => void
   removeProperty: (id: string) => void
-  sortProperties: (tag: string) => void
+  sortProperties: (status: string) => void
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined)
@@ -37,7 +37,7 @@ export const PropertyProvider: React.FC = ({ children }) => {
         "https://picsum.photos/id/1015/300/200",
         "https://picsum.photos/id/1019/300/200",
       ],
-      tags: ["seen", "contacted"],
+      status: "seen",
       notes: "Needs new roof, but great potential. Large backyard perfect for families.",
     },
     {
@@ -48,7 +48,7 @@ export const PropertyProvider: React.FC = ({ children }) => {
         "https://picsum.photos/id/1031/300/200",
         "https://picsum.photos/id/1033/300/200",
       ],
-      tags: ["in discussion"],
+      status: "in discussion",
       notes: "Modern interior, recently renovated. Close to downtown and amenities.",
     },
   ])
@@ -57,21 +57,36 @@ export const PropertyProvider: React.FC = ({ children }) => {
     setProperties([...properties, property])
   }
 
-  const updateProperty = (id: string, updates: Partial<Property>) => {
-    setProperties(properties.map((p) => (p.id === id ? { ...p, ...updates } : p)))
+  const updateProperty = async (id: string, updates: Partial<Property>) => {
+    try {
+      const response = await fetch(`http://localhost:5001/api/leads/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(updates)
+      })
+      if (!response.ok) {
+        throw new Error("Failed to update property")
+      }
+      const updatedProperty = await response.json()
+      setProperties(properties.map((p) => (p.id === id ? updatedProperty : p)))
+    } catch (error) {
+      console.error("Error updating property:", error)
+    }
   }
 
   const removeProperty = (id: string) => {
     setProperties(properties.filter((p) => p.id !== id))
   }
 
-  const sortProperties = (tag: string) => {
+  const sortProperties = (status: string) => {
     setProperties(
       [...properties].sort((a, b) => {
-        const aHasTag = a.tags.includes(tag)
-        const bHasTag = b.tags.includes(tag)
-        return aHasTag === bHasTag ? 0 : aHasTag ? -1 : 1
-      }),
+        const aHasStatus = a.status === status
+        const bHasStatus = b.status === status
+        return aHasStatus === bHasStatus ? 0 : aHasStatus ? -1 : 1
+      })
     )
   }
 
@@ -81,4 +96,3 @@ export const PropertyProvider: React.FC = ({ children }) => {
     </PropertyContext.Provider>
   )
 }
-

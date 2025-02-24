@@ -50,6 +50,7 @@ const Lead = sequelize.define(
     owner: { type: DataTypes.STRING, allowNull: true },
     images: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Lead" },
+    notes: { type: DataTypes.STRING, allowNull: true },
   },
   { tableName: "leads", timestamps: false }
 );
@@ -58,7 +59,7 @@ const Lead = sequelize.define(
 app.get("/api/leads", async (req, res) => {
   try {
     const leads = await Lead.findAll({
-      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status"], // Ensure "images" is included
+      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status", "notes"], // Ensure "images" is included
     });
 
     const formattedLeads = leads.map((lead) => ({
@@ -86,7 +87,7 @@ app.post("/api/leads", async (req, res) => {
     }
 
     // Save lead in DB
-    const newLead = await Lead.create({ name: name || null, address, city, state, zip, owner, images, status: status || "Lead" });
+    const newLead = await Lead.create({ name: name || null, address, city, state, zip, owner, images, status: status || "Lead", notes: null });
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -97,10 +98,11 @@ app.post("/api/leads", async (req, res) => {
 
 app.put("/api/leads/:id", async (req, res) => {
   try {
+    console.log("put request");
     const { id } = req.params;
-    const { name, address, city, state, zip, owner, status, images } = req.body;
+    const { name, address, city, state, zip, owner, status, images, notes } = req.body;
 
-    // Validate input
+    // Validate input and prepare update object
     const fieldsToUpdate = {};
     if (name !== undefined) fieldsToUpdate.name = name;
     if (address !== undefined) fieldsToUpdate.address = address;
@@ -110,6 +112,9 @@ app.put("/api/leads/:id", async (req, res) => {
     if (owner !== undefined) fieldsToUpdate.owner = owner;
     if (status !== undefined) fieldsToUpdate.status = status;
     if (images !== undefined) fieldsToUpdate.images = images;
+    if (notes !== undefined) fieldsToUpdate.notes = notes; // update notes
+
+    console.log("Updating lead with:", fieldsToUpdate);
 
     const updatedLead = await Lead.update(fieldsToUpdate, { where: { id } });
 
@@ -117,7 +122,7 @@ app.put("/api/leads/:id", async (req, res) => {
       return res.status(404).json({ error: "Lead not found" });
     }
 
-    // ✅ Fetch updated lead data from DB and return it
+    // Fetch updated lead and return it
     const lead = await Lead.findByPk(id);
     res.json(lead);
 
@@ -126,6 +131,7 @@ app.put("/api/leads/:id", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 
 // Delete a lead (DELETE route)

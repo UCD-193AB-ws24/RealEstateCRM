@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ScrollView, FlatList } from "react-native"
 import { usePropertyContext } from "../contexts/PropertyContext"
 import { useNavigation } from "@react-navigation/native"
@@ -11,14 +11,22 @@ const PropertyDetailScreen = ({ route }) => {
 
   const [notes, setNotes] = useState(property.notes)
 
+  // Update the status when a tag is tapped
   const toggleTag = (tag) => {
-    const updatedTags = property.tags.includes(tag) ? property.tags.filter((t) => t !== tag) : [...property.tags, tag]
-    updateProperty(propertyId, { tags: updatedTags })
+    console.log("Toggling tag:", tag)
+    const newStatus = property.status === tag ? "Lead" : tag
+    updateProperty(propertyId, { status: newStatus })
   }
 
-  const saveNotes = () => {
-    updateProperty(propertyId, { notes })
+  // Save notes when the Save button is pressed
+  const handleSaveNotes = () => {
+    console.log("Saving notes:", notes)
+    updateProperty(propertyId, { notes: notes })
   }
+
+  useEffect(() => {
+    handleSaveNotes()
+  }, [notes])
 
   const handleRemoveProperty = () => {
     removeProperty(propertyId)
@@ -42,7 +50,7 @@ const PropertyDetailScreen = ({ route }) => {
         {["seen", "contacted", "in discussion", "bought"].map((tag) => (
           <TouchableOpacity
             key={tag}
-            style={[styles.tag, property.tags.includes(tag) && styles.activeTag]}
+            style={[styles.tag, property.status === tag && styles.activeTag]}
             onPress={() => toggleTag(tag)}
           >
             <Text>{tag}</Text>
@@ -57,9 +65,10 @@ const PropertyDetailScreen = ({ route }) => {
         onChangeText={setNotes}
         placeholder="Add notes here..."
       />
-      <TouchableOpacity style={styles.saveButton} onPress={saveNotes}>
+
+      {/* <TouchableOpacity style={styles.saveButton} onPress={handleSaveNotes}>
         <Text>Save Notes</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <TouchableOpacity style={styles.removeButton} onPress={handleRemoveProperty}>
         <Text style={styles.removeButtonText}>Remove Property</Text>
@@ -127,4 +136,3 @@ const styles = StyleSheet.create({
 })
 
 export default PropertyDetailScreen;
-

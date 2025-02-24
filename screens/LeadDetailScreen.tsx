@@ -11,7 +11,6 @@ import * as ImagePicker from "expo-image-picker";
 import { ViewPropTypes } from "deprecated-react-native-prop-types";
 import LeadListScreen from "./LeadListScreen";
 
-
 const API_URL = "http://localhost:5001/api/leads";
 const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 
@@ -32,51 +31,61 @@ export default function LeadDetailScreen({ route, navigation }) {
     { label: "Sale", value: "Sale" },
   ]);
 
+  // Separate state for notes
+  const [notes, setNotes] = useState(editableLead.notes || "");
+  // Flag to track if save is in progress
+  const [isSaving, setIsSaving] = useState(false);
+
   const hasChangesRef = useRef(false);
-
-
   useEffect(() => {
     hasChangesRef.current = hasChanges;
   }, [hasChanges]);
-  
+
+  // beforeRemove listener: auto-save if there are unsaved changes
   useEffect(() => {
     return navigation.addListener("beforeRemove", async () => {
-      if (hasChangesRef.current) await saveLead();
+      if (hasChangesRef.current && !isSaving) {
+        await saveLead();
+      }
     });
-  }, []);
+  }, [isSaving]);
 
   const handleInputChange = (field, value) => {
+    // For fields other than notes, update editableLead directly.
     setEditableLead({ ...editableLead, [field]: value });
     setHasChanges(true);
   };
 
   const saveLead = async () => {
-  try {
-    const updatedLead = { ...editableLead, status }; // Ensure status is updated
+    // Prevent duplicate saves
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      // Merge separate notes into the lead object
+      const updatedLead = { ...editableLead, status, notes };
+      console.log("Updating lead with data:", updatedLead);
 
-    console.log("Updating lead with data:", updatedLead); // Debugging log
+      const response = await fetch(`${API_URL}/${lead.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedLead),
+      });
 
-    const response = await fetch(`${API_URL}/${lead.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedLead), // ✅ Send entire lead object
-    });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update lead: ${errorText}`);
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to update lead: ${errorText}`);
+      setHasChanges(false);
+      // Navigate only if not already navigating from button press.
+      navigation.navigate("LeadListScreen");
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      Alert.alert("Error", `Failed to update lead: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setHasChanges(false);
-    navigation.navigate("LeadListScreen"); // ✅ Navigate to list view
-
-  } catch (error) {
-    console.error("Error updating lead:", error);
-    Alert.alert("Error", `Failed to update lead: ${error.message}`);
-  }
-};
-
-  
+  };
 
   const saveChanges = async () => {
     try {
@@ -93,8 +102,9 @@ export default function LeadDetailScreen({ route, navigation }) {
   
       const updatedLead = await response.json();
       setEditableLead(updatedLead);
+      console.log("Lead updated successfully:", updatedLead);
       setHasChanges(false);
-      setModalVisible(false); // ✅ Closes modal but stays on details screen
+      setModalVisible(false);
   
     } catch (error) {
       console.error("Error updating lead:", error);
@@ -102,8 +112,6 @@ export default function LeadDetailScreen({ route, navigation }) {
     }
   };
   
-  
-
   const deleteLead = async () => {
     try {
       const response = await fetch(`${API_URL}/${lead.id}`, {
@@ -113,14 +121,13 @@ export default function LeadDetailScreen({ route, navigation }) {
       if (!response.ok) throw new Error("Failed to delete lead");
 
       Alert.alert("Success", "Lead deleted successfully!");
-      navigation.goBack(); // Navigate back to the lead list after deletion
+      navigation.goBack();
     } catch (error) {
       console.error("Error deleting lead:", error);
       Alert.alert("Error", "Failed to delete lead");
     }
   };
 
-  // Function to delete lead
   const deleteImage = async (imageUrl) => {
     const updatedImages = editableLead.images.filter((img) => img !== imageUrl);
     setEditableLead({ ...editableLead, images: updatedImages });
@@ -144,9 +151,9 @@ export default function LeadDetailScreen({ route, navigation }) {
     let result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       quality: 1,
-      selectionLimit: 5, // Allow selecting multiple images
+      selectionLimit: 5,
     });
-  
+
     if (!result.canceled) {
       let formData = new FormData();
       result.assets.forEach((asset, index) => {
@@ -156,40 +163,37 @@ export default function LeadDetailScreen({ route, navigation }) {
           type: "image/jpeg",
         });
       });
-  
+
       try {
         let response = await fetch(IMAGE_UPLOAD_URL, {
           method: "POST",
           body: formData,
-          headers: { "Accept": "application/json" }, // ✅ Ensure JSON response
+          headers: { "Accept": "application/json" },
         });
-  
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Upload failed: ${errorText}`);
         }
-  
-        let data = await response.json(); // ✅ Parse JSON
+
+        let data = await response.json();
         const updatedImages = [...editableLead.images, ...data.imageUrls];
-  
+
         setEditableLead({ ...editableLead, images: updatedImages });
         setHasChanges(true);
-  
-        // ✅ Update lead in DB
+
         await fetch(`${API_URL}/${lead.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...editableLead, images: updatedImages }),
         });
-  
+
       } catch (error) {
         console.error("Error uploading image:", error);
         Alert.alert("Error", `Failed to upload image: ${error.message}`);
       }
     }
   };
-
-
 
   const confirmDeleteLead = () => {
     Alert.alert(
@@ -201,137 +205,134 @@ export default function LeadDetailScreen({ route, navigation }) {
       ]
     );
   };
-  
-  
-  
 
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={30} color="black" />
-        </TouchableOpacity>
+        <View style={styles.headerContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={30} color="black" />
+          </TouchableOpacity>
 
-        <Text style={styles.addressText}>
-          {editableLead.name ? editableLead.name : editableLead.address.split(",")[0]}
-        </Text>
+          <Text style={styles.addressText}>
+            {editableLead.name ? editableLead.name : editableLead.address.split(",")[0]}
+          </Text>
 
-
-        <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <TouchableOpacity onPress={() => setModalVisible(true)}>
             <Ionicons name="pencil" size={24} color="black" />
           </TouchableOpacity>
-        <TouchableOpacity style={styles.trashButton} onPress={confirmDeleteLead}>
-          <Ionicons name="trash" size={30} color="black" />
-        </TouchableOpacity>
-      </View>
-
-
-      {/* Image Carousel with Arrows */}
-      <View style={styles.carouselContainer}>
-        {editableLead.images.length > 0 ? (
-          <>
-            {activeSlide > 0 && (
-              <TouchableOpacity style={styles.arrowLeft} onPress={() => carouselRef.current?.snapToPrev()}>
-                <Ionicons name="chevron-back" size={30} color="white" />
-              </TouchableOpacity>
-            )}
-
-          <Carousel
-            ref={carouselRef}
-            data={[...editableLead.images, "add-new"]}
-            renderItem={({ item }) =>
-              item === "add-new" ? (
-                <TouchableOpacity style={styles.addImageContainer} onPress={addImage}>
-                  <Ionicons name="add-circle" size={70} color="#A078C4" />
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.imageWrapper}>
-                  <Image source={{ uri: item }} style={styles.leadImage} />
-                  <TouchableOpacity style={styles.removeButton} onPress={() => deleteImage(item)}>
-                    <Text style={styles.removeButtonText}>x</Text>
-                  </TouchableOpacity>
-                </View>
-              )
-            }
-            sliderWidth={screenWidth - 40}
-            itemWidth={screenWidth - 40}
-            onSnapToItem={(index) => setActiveSlide(index)}
-          />
-
-            {activeSlide < editableLead.images.length && (
-              <TouchableOpacity style={styles.arrowRight} onPress={() => carouselRef.current?.snapToNext()}>
-                <Ionicons name="chevron-forward" size={30} color="white" />
-              </TouchableOpacity>
-            )}
-
-          </>
-        ) : (
-          <View style={styles.noImageContainer}>
-            <Ionicons name="image-outline" size={80} color="gray" />
-            <Text style={styles.noImageText}>No Images Available</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Status Tracker */}
-      <View style={styles.pickerContainer}>
-        <Text style={styles.notesTitle}>Status</Text>
-        <DropDownPicker
-          open={open}
-          value={status}
-          items={[
-            { label: "Lead", value: "Lead" },
-            { label: "Contact", value: "Contact" },
-            { label: "Offer", value: "Offer" },
-            { label: "Sale", value: "Sale" },
-          ]}
-          setOpen={setOpen}
-          setValue={(value) => {
-            if (value !== status) {
-              handleInputChange("status", value);
-              setStatus(value);
-            }
-          }}
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-        />
-      </View>
-
-      {/* Notes Section */}
-      <View style={styles.notesContainer}>
-        <Text style={styles.notesTitle}>Notes</Text>
-        <TextInput
-          style={styles.notesInput}
-          value={editableLead.notes || ""}
-          onChangeText={(text) => handleInputChange("notes", text)}
-          multiline
-        />
-      </View>
-
-      <TouchableOpacity style={styles.deleteButton} onPress={saveLead}>
-        <Text style={styles.buttonText}>Save Lead</Text>
-      </TouchableOpacity>
-
-      <Modal visible={modalVisible} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            {["name", "address", "city", "state", "zip", "owner"].map((field) => (
-              <View key={field} style={styles.modalField}>
-                <Text style={styles.label}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editableLead[field]}
-                  onChangeText={(text) => handleInputChange(field, text)}
-                />
-              </View>
-            ))}
-            <Button mode="contained" onPress={saveChanges} style={styles.saveButton}>
-              Save
-            </Button>
-          </View>
+          <TouchableOpacity style={styles.trashButton} onPress={confirmDeleteLead}>
+            <Ionicons name="trash" size={30} color="black" />
+          </TouchableOpacity>
         </View>
-      </Modal>
+
+        {/* Image Carousel with Arrows */}
+        <View style={styles.carouselContainer}>
+          {editableLead.images.length > 0 ? (
+            <>
+              {activeSlide > 0 && (
+                <TouchableOpacity style={styles.arrowLeft} onPress={() => carouselRef.current?.snapToPrev()}>
+                  <Ionicons name="chevron-back" size={30} color="white" />
+                </TouchableOpacity>
+              )}
+
+              <Carousel
+                ref={carouselRef}
+                data={[...editableLead.images, "add-new"]}
+                renderItem={({ item }) =>
+                  item === "add-new" ? (
+                    <TouchableOpacity style={styles.addImageContainer} onPress={addImage}>
+                      <Ionicons name="add-circle" size={70} color="#A078C4" />
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.imageWrapper}>
+                      <Image source={{ uri: item }} style={styles.leadImage} />
+                      <TouchableOpacity style={styles.removeButton} onPress={() => deleteImage(item)}>
+                        <Text style={styles.removeButtonText}>x</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )
+                }
+                sliderWidth={screenWidth - 40}
+                itemWidth={screenWidth - 40}
+                onSnapToItem={(index) => setActiveSlide(index)}
+              />
+
+              {activeSlide < editableLead.images.length && (
+                <TouchableOpacity style={styles.arrowRight} onPress={() => carouselRef.current?.snapToNext()}>
+                  <Ionicons name="chevron-forward" size={30} color="white" />
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <View style={styles.noImageContainer}>
+              <Ionicons name="image-outline" size={80} color="gray" />
+              <Text style={styles.noImageText}>No Images Available</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Status Tracker */}
+        <View style={styles.pickerContainer}>
+          <Text style={styles.notesTitle}>Status</Text>
+          <DropDownPicker
+            open={open}
+            value={status}
+            items={[
+              { label: "Lead", value: "Lead" },
+              { label: "Contact", value: "Contact" },
+              { label: "Offer", value: "Offer" },
+              { label: "Sale", value: "Sale" },
+            ]}
+            setOpen={setOpen}
+            setValue={(value) => {
+              if (value !== status) {
+                handleInputChange("status", value);
+                setStatus(value);
+              }
+            }}
+            style={styles.dropdown}
+            dropDownContainerStyle={styles.dropdownContainer}
+          />
+        </View>
+
+        {/* Notes Section */}
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesTitle}>Notes</Text>
+          <TextInput
+            style={styles.notesInput}
+            value={notes}
+            onChangeText={(text) => {
+              setNotes(text);
+              setHasChanges(true);
+            }}
+            multiline
+          />
+        </View>
+
+        <TouchableOpacity style={styles.deleteButton} onPress={saveLead}>
+          <Text style={styles.buttonText}>Save Lead</Text>
+        </TouchableOpacity>
+
+        <Modal visible={modalVisible} animationType="fade" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              {["name", "address", "city", "state", "zip", "owner"].map((field) => (
+                <View key={field} style={styles.modalField}>
+                  <Text style={styles.label}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editableLead[field]}
+                    onChangeText={(text) => handleInputChange(field, text)}
+                  />
+                </View>
+              ))}
+              <Button mode="contained" onPress={saveChanges} style={styles.saveButton}>
+                Save
+              </Button>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
   safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
   scrollContainer: { padding: 15 },
   backButton: { marginTop: 10, marginLeft: 10 },
-  headerIcons: { flexDirection: "row", },
+  headerIcons: { flexDirection: "row" },
   trashIcon: { paddingRight: 10 },
   addImageContainer: {
     width: "100%",
@@ -354,12 +355,12 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // ✅ Ensures proper alignment
+    justifyContent: "space-between",
     paddingHorizontal: 15,
     marginBottom: 20,
   },
-  header: { flexDirection: "row", justifyContent: "center", alignItems: "center", },
-  addressText: { fontSize: 22, fontWeight: "bold", textAlign: "center", },
+  header: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  addressText: { fontSize: 22, fontWeight: "bold", textAlign: "center" },
   carouselContainer: { alignItems: "center", marginVertical: 20 },
   leadImage: { width: "100%", height: 250, borderRadius: 10 },
   arrowLeft: { position: "absolute", left: 10, top: "50%", zIndex: 1 },
@@ -367,10 +368,10 @@ const styles = StyleSheet.create({
   statusContainer: { marginTop: 20 },
   statusTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
   statusInput: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, backgroundColor: "#fff" },
-  pickerContainer: { marginVertical: 10, zIndex: 1000, },
+  pickerContainer: { marginVertical: 10, zIndex: 1000 },
   notesContainer: { marginTop: 20 },
-  dropdown: { borderColor: "#ccc", backgroundColor: "#fff", width: "100%", zIndex: 2000, },
-  dropdownContainer: { borderColor: "#ccc", width: "100%", zIndex: 3000, },
+  dropdown: { borderColor: "#ccc", backgroundColor: "#fff", width: "100%", zIndex: 2000 },
+  dropdownContainer: { borderColor: "#ccc", width: "100%", zIndex: 3000 },
   notesTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
   notesInput: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, height: 100 },
   deleteButton: { backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center", marginTop: 20 },
