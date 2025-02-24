@@ -105,6 +105,12 @@ export default function LeadListScreen({ navigation }) {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.warn("Location permission denied, using default Davis location.");
+        setRegion({
+          latitude: 38.5449,
+          longitude: -121.7405,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
         return;
       }
   
@@ -113,26 +119,17 @@ export default function LeadListScreen({ navigation }) {
       // Check if running in a simulator
       const isSimulator = location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
   
-      if (isSimulator) {
-        console.warn("Simulator detected. Forcing location to Davis, CA.");
-        setRegion({
-          latitude: 38.5449,
-          longitude: -121.7405,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      } else {
-        setRegion({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      }
+      setRegion({
+        latitude: isSimulator ? 38.5449 : location.coords.latitude,
+        longitude: isSimulator ? -121.7405 : location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
     } catch (error) {
       console.error("Error getting user location:", error);
     }
   };
+  
   
 
   const filteredLeads = leads.filter((lead) =>
