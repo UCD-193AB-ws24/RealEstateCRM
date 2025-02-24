@@ -226,16 +226,6 @@ export default function LeadDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Address & Edit Button */}
-      {/* <View style={styles.header}>
-        <Text style={styles.addressText}>{editableLead.address.split(",")[0]}</Text>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
-            <Ionicons name="pencil" size={24} color="black" />
-          </TouchableOpacity>
-        </View>
-      </View> */}
-
 
       {/* Image Carousel with Arrows */}
       <View style={styles.carouselContainer}>

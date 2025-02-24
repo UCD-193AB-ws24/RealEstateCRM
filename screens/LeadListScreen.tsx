@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image, ActionSheetIOS } from "react-native";
 import { Card, Button, Menu, Divider } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
@@ -9,6 +9,7 @@ import * as Sharing from "expo-sharing";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DropDownPicker from "react-native-dropdown-picker";
 import { Provider } from "react-native-paper";
+
 
 const API_URL = "http://localhost:5001/api/leads";
 const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
@@ -85,6 +86,26 @@ export default function LeadListScreen({ navigation }) {
       console.error("Error fetching leads:", error);
     }
   };
+
+
+const openActionsMenu = () => {
+  ActionSheetIOS.showActionSheetWithOptions(
+    {
+      options: ["Cancel", "Delete Selected Leads", "Contact Owner", "Change Status"],
+      cancelButtonIndex: 0,
+      destructiveButtonIndex: 1,
+    },
+    (buttonIndex) => {
+      if (buttonIndex === 1) {
+        alert("Deleting selected leads...");
+      } else if (buttonIndex === 2) {
+        alert("Contacting owner...");
+      } else if (buttonIndex === 3) {
+        alert("Changing status...");
+      }
+    }
+  );
+};
 
   // const filteredLeads = leads.filter((lead) => {
   //   return (
@@ -210,23 +231,10 @@ export default function LeadListScreen({ navigation }) {
         <View style={styles.buttonRow}>
           {/* 🔹 Filter Controls */}
           <Button mode="contained" style={styles.button} onPress={() => setFiltersVisible(!filtersVisible)}>Filters</Button>
-          
-          {/* Actions Menu */}
-          <Menu
-            visible={actionsVisible}
-            onDismiss={() => setActionsVisible(false)}
-            anchor={
-              <TouchableOpacity onPress={() => setActionsVisible(true)} style={styles.iconButton}>
-                <Ionicons name="ellipsis-vertical" size={24} color="black" />
-              </TouchableOpacity>
-            }
-          >
-            <Menu.Item onPress={() => alert("Delete selected leads")} title="Delete Selected Leads" />
-            <Divider />
-            <Menu.Item onPress={() => alert("Contact Owner")} title="Contact Owner" />
-            <Divider />
-            <Menu.Item onPress={() => alert("Change Status")} title="Change Status" />
-          </Menu>
+
+          <Button mode="contained" style={styles.button} onPress={openActionsMenu}>
+            Actions
+          </Button>
 
           {/* Export Button */}
           <Button mode="contained" style={styles.button} onPress={exportToCSV}>Export</Button>
@@ -313,7 +321,7 @@ export default function LeadListScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
-  container: { flex: 1, padding: 10, backgroundColor: "#DFC5FE" },
+  container: { padding: 10, backgroundColor: "#DFC5FE" },
   searchContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10, backgroundColor: "#fff", padding: 10, borderRadius: 10 },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 16 },
