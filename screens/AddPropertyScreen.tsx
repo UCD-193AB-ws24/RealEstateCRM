@@ -5,8 +5,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
+const API_URL = "http://10.0.2.2:5001/api/leads";
+const IMAGE_UPLOAD_URL = "http://10.0.2.2:5001/api/upload";
 
 
 const AddPropertyScreen = () => {

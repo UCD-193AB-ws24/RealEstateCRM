@@ -11,8 +11,8 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { Provider } from "react-native-paper";
 
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
+const API_URL = "http://10.0.2.2:5001/api/leads";
+const IMAGE_UPLOAD_URL = "http://10.0.2.2:5001/api/uploads";
 
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");

@@ -12,8 +12,8 @@ import { ViewPropTypes } from "deprecated-react-native-prop-types";
 import LeadListScreen from "./LeadListScreen";
 
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
+const API_URL = "http://10.0.2.2:5001/api/leads";
+const IMAGE_UPLOAD_URL = "http://10.0.2.2:5001/api/upload";
 
 export default function LeadDetailScreen({ route, navigation }) {
   const { lead } = route.params;
