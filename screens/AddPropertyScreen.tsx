@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const API_URL = "http://localhost:5001/api/leads";
 const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
@@ -10,7 +11,12 @@ const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 
 const AddPropertyScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { latitude, longitude } = route.params || {};
 
+  const isFromMap = !!latitude && !!longitude;
+
+  const [name, setName] = useState("");
   const [images, setImages] = useState([]);
   const [firstImageUri, setFirstImageUri] = useState(null);
   const [address, setAddress] = useState("");
@@ -18,6 +24,12 @@ const AddPropertyScreen = () => {
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [owner, setOwner] = useState("");
+
+  useEffect(() => {
+    if (isFromMap) {
+      getAddressFromCoords(latitude, longitude);
+    }
+  }, [latitude, longitude]);
 
   const pickImage = async (useCamera = false) => {
     let result;
@@ -40,7 +52,7 @@ const AddPropertyScreen = () => {
       setImages([...images, ...newImages]);
 
       // Use first image's metadata for autofill if no previous autofill
-      if (!firstImageUri && result.assets && result.assets.length > 0) {
+      if (!isFromMap && !firstImageUri && result.assets && result.assets.length > 0) {
         setFirstImageUri(result.assets[0].uri);
         const { GPSLatitude, GPSLongitude } = result.assets[0].exif || {};
         if (GPSLatitude && GPSLongitude) {
@@ -122,22 +134,11 @@ const AddPropertyScreen = () => {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
-
+  
     let imageUrls = [];
   
     if (images.length > 0) {
-        // // Upload the image and create lead in one request
-        // imageUrl = await uploadImage(image, address, city, state, zip, owner);
-        // if (!imageUrl) {
-        //   throw new Error("Image upload failed.");
-        // }
-        // // If image upload works, lead is already added, so return early
-        // Alert.alert("Success", "Property added successfully!");
-        // navigation.goBack();
-        // return;
-
       let formData = new FormData();
-
       images.forEach((imgUri, index) => {
         formData.append("files", {
           uri: imgUri.startsWith("file://") ? imgUri : `file://${imgUri}`,
@@ -145,43 +146,47 @@ const AddPropertyScreen = () => {
           type: "image/jpeg",
         });
       });
-
+  
       formData.append("address", address);
       formData.append("city", city);
       formData.append("state", state);
       formData.append("zip", zip);
       formData.append("owner", owner);
-
+  
       try {
         let response = await fetch(IMAGE_UPLOAD_URL, {
           method: "POST",
           body: formData,
           headers: { "Accept": "application/json" },
         });
-
+  
         let data = await response.json();
         if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
-
-        imageUrls = data.images;
+  
+        console.log("✅ Lead added via /api/upload", data);
+        Alert.alert("Success", "Property added successfully!");
+        navigation.goBack();
+        return; // 🚀 Prevents duplicate call to /api/leads
       } catch (error) {
         console.error("Error uploading images:", error);
         Alert.alert("Error", "Failed to upload images.");
         return;
       }
     }
-
-    // If no image, create the lead via /api/leads
-    const newProperty = { address, city, state, zip, owner, images: imageUrls };
-
+  
+    // If no images, add lead separately
+    const newProperty = { name, address, city, state, zip, owner };
+  
     try {
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProperty),
       });
-
+  
       if (!response.ok) throw new Error("Failed to add property");
-
+  
+      console.log("✅ Lead added via /api/leads", await response.json());
       Alert.alert("Success", "Property added successfully!");
       navigation.goBack();
     } catch (error) {
@@ -189,8 +194,10 @@ const AddPropertyScreen = () => {
       Alert.alert("Error", "Failed to add property.");
     }
   };
+  
 
   return (
+    <SafeAreaView style={styles.safeContainer} >
     <View style={styles.container}>
       <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
         <Text style={styles.photoButtonText}>Take a Picture</Text>
@@ -218,6 +225,14 @@ const AddPropertyScreen = () => {
         </ScrollView>
       )}
 
+      <Text style={styles.label}>Property Name</Text>
+      <TextInput 
+        style={styles.input} 
+        value={name} 
+        onChangeText={setName} 
+        placeholder="Enter property name (e.g., 4 bed 4 bath)" 
+      />
+
       <Text style={styles.label}>Address</Text>
       <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Enter address" />
 
@@ -237,10 +252,12 @@ const AddPropertyScreen = () => {
         <Text style={styles.addButtonText}>Add Property</Text>
       </TouchableOpacity>
     </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeContainer: { flex: 1},
   container: { flex: 1, padding: 20 },
   photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
   photoButtonText: { color: "white", fontSize: 16 },

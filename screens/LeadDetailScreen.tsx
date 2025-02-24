@@ -7,10 +7,12 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
+import * as ImagePicker from "expo-image-picker";
 import { ViewPropTypes } from "deprecated-react-native-prop-types";
 
 
-const API_URL = "http://localhost:5001/api/leads"; // Ensure this matches your backend
+const API_URL = "http://localhost:5001/api/leads";
+const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 
 export default function LeadDetailScreen({ route, navigation }) {
   const { lead } = route.params;
@@ -29,12 +31,18 @@ export default function LeadDetailScreen({ route, navigation }) {
     { label: "Sale", value: "Sale" },
   ]);
 
+  const hasChangesRef = useRef(false);
+
 
   useEffect(() => {
+    hasChangesRef.current = hasChanges;
+  }, [hasChanges]);
+  
+  useEffect(() => {
     return navigation.addListener("beforeRemove", async () => {
-      if (hasChanges) await saveLead();
+      if (hasChangesRef.current) await saveLead();
     });
-  }, [editableLead]);
+  }, []);
 
   const handleInputChange = (field, value) => {
     setEditableLead({ ...editableLead, [field]: value });
@@ -48,18 +56,25 @@ export default function LeadDetailScreen({ route, navigation }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editableLead),
       });
-
-      if (!response.ok) throw new Error("Failed to update lead");
-
+  
+      if (!response.ok) {
+        const errorText = await response.text(); // Read error response
+        throw new Error(`Failed to update lead: ${errorText}`);
+      }
+  
+      const updatedLead = await response.json();
+      setEditableLead(updatedLead);
+      setHasChanges(false);
       setModalVisible(false);
-
+      navigation.goBack();
+  
     } catch (error) {
       console.error("Error updating lead:", error);
-      Alert.alert("Error", "Failed to update lead");
+      Alert.alert("Error", `Failed to update lead: ${error.message}`);
     }
   };
+  
 
-  // Function to delete lead
   const deleteLead = async () => {
     try {
       const response = await fetch(`${API_URL}/${lead.id}`, {
@@ -76,6 +91,89 @@ export default function LeadDetailScreen({ route, navigation }) {
     }
   };
 
+  // Function to delete lead
+  const deleteImage = async (imageUrl) => {
+    const updatedImages = editableLead.images.filter((img) => img !== imageUrl);
+    setEditableLead({ ...editableLead, images: updatedImages });
+    setHasChanges(true);
+
+    try {
+      const response = await fetch(`${API_URL}/${lead.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...editableLead, images: updatedImages }),
+      });
+
+      if (!response.ok) throw new Error("Failed to delete image");
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      Alert.alert("Error", "Failed to delete image.");
+    }
+  };
+
+  const addImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      quality: 1,
+      selectionLimit: 5, // Allow selecting multiple images
+    });
+  
+    if (!result.canceled) {
+      let formData = new FormData();
+      result.assets.forEach((asset, index) => {
+        formData.append("file", {
+          uri: asset.uri,
+          name: `image-${index}.jpg`,
+          type: "image/jpeg",
+        });
+      });
+  
+      try {
+        let response = await fetch(IMAGE_UPLOAD_URL, {
+          method: "POST",
+          body: formData,
+          headers: { "Accept": "application/json" }, // ✅ Ensure JSON response
+        });
+  
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Upload failed: ${errorText}`);
+        }
+  
+        let data = await response.json(); // ✅ Parse JSON
+        const updatedImages = [...editableLead.images, ...data.imageUrls];
+  
+        setEditableLead({ ...editableLead, images: updatedImages });
+        setHasChanges(true);
+  
+        // ✅ Update lead in DB
+        await fetch(`${API_URL}/${lead.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...editableLead, images: updatedImages }),
+        });
+  
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        Alert.alert("Error", `Failed to upload image: ${error.message}`);
+      }
+    }
+  };
+
+  const confirmDeleteLead = () => {
+    Alert.alert(
+      "Delete Lead?",
+      "Are you sure you want to delete this lead?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteLead }
+      ]
+    );
+  };
+  
+  
+  
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -86,9 +184,14 @@ export default function LeadDetailScreen({ route, navigation }) {
       {/* Address & Edit Button */}
       <View style={styles.header}>
         <Text style={styles.addressText}>{editableLead.address.split(",")[0]}</Text>
-        <TouchableOpacity onPress={() => setModalVisible(true)}>
-          <Ionicons name="pencil" size={24} color="black" />
-        </TouchableOpacity>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={() => setModalVisible(true)}>
+            <Ionicons name="pencil" size={24} color="black" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={confirmDeleteLead} style={styles.trashIcon}>
+            <Ionicons name="trash" size={24} color="red" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Image Carousel with Arrows */}
@@ -101,16 +204,29 @@ export default function LeadDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
 
-            <Carousel
-              ref={carouselRef}
-              data={editableLead.images}
-              renderItem={({ item }) => <Image source={{ uri: item }} style={styles.leadImage} />}
-              sliderWidth={screenWidth - 40}
-              itemWidth={screenWidth - 40}
-              onSnapToItem={(index) => setActiveSlide(index)}
-            />
+          <Carousel
+            ref={carouselRef}
+            data={[...editableLead.images, "add-new"]}
+            renderItem={({ item }) =>
+              item === "add-new" ? (
+                <TouchableOpacity style={styles.addImageContainer} onPress={addImage}>
+                  <Ionicons name="add-circle" size={50} color="#A078C4" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.imageWrapper}>
+                  <Image source={{ uri: item }} style={styles.leadImage} />
+                  <TouchableOpacity style={styles.removeButton} onPress={() => deleteImage(item)}>
+                    <Text style={styles.removeButtonText}>x</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            }
+            sliderWidth={screenWidth - 40}
+            itemWidth={screenWidth - 40}
+            onSnapToItem={(index) => setActiveSlide(index)}
+          />
 
-            {activeSlide < editableLead.images.length - 1 && (
+            {activeSlide < editableLead.images.length && (
               <TouchableOpacity style={styles.arrowRight} onPress={() => carouselRef.current?.snapToNext()}>
                 <Ionicons name="chevron-forward" size={30} color="white" />
               </TouchableOpacity>
@@ -127,16 +243,22 @@ export default function LeadDetailScreen({ route, navigation }) {
 
       {/* Status Tracker */}
       <View style={styles.pickerContainer}>
-      <Text style={styles.notesTitle}>Status</Text>
+        <Text style={styles.notesTitle}>Status</Text>
         <DropDownPicker
           open={open}
           value={status}
-          items={items}
+          items={[
+            { label: "Lead", value: "Lead" },
+            { label: "Contact", value: "Contact" },
+            { label: "Offer", value: "Offer" },
+            { label: "Sale", value: "Sale" },
+          ]}
           setOpen={setOpen}
-          setValue={setStatus}
-          onChangeValue={(value) => {
-            handleInputChange("status", value);
-            setStatus(value);
+          setValue={(value) => {
+            if (value !== status) {
+              handleInputChange("status", value);
+              setStatus(value);
+            }
           }}
           style={styles.dropdown}
           dropDownContainerStyle={styles.dropdownContainer}
@@ -154,14 +276,14 @@ export default function LeadDetailScreen({ route, navigation }) {
         />
       </View>
 
-      <TouchableOpacity style={styles.deleteButton} onPress={deleteLead}>
-        <Text style={styles.buttonText}>Delete Lead</Text>
+      <TouchableOpacity style={styles.deleteButton} onPress={saveLead}>
+        <Text style={styles.buttonText}>Save Lead</Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {["address", "city", "state", "zip", "owner"].map((field) => (
+            {["name", "address", "city", "state", "zip", "owner"].map((field) => (
               <View key={field} style={styles.modalField}>
                 <Text style={styles.label}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
                 <TextInput
@@ -195,10 +317,10 @@ const styles = StyleSheet.create({
   statusContainer: { marginTop: 20 },
   statusTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
   statusInput: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, backgroundColor: "#fff" },
-  pickerContainer: { marginVertical: 10 },
+  pickerContainer: { marginVertical: 10, zIndex: 1000, },
   notesContainer: { marginTop: 20 },
-  dropdown: { borderColor: "#ccc", backgroundColor: "#fff", width: "100%" },
-  dropdownContainer: { borderColor: "#ccc", width: "100%" },
+  dropdown: { borderColor: "#ccc", backgroundColor: "#fff", width: "100%", zIndex: 2000, },
+  dropdownContainer: { borderColor: "#ccc", width: "100%", zIndex: 3000, },
   notesTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
   notesInput: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, height: 100 },
   deleteButton: { backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center", marginTop: 20 },
@@ -209,4 +331,16 @@ const styles = StyleSheet.create({
   label: { fontSize: 16, fontWeight: "bold" },
   input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5 },
   saveButton: { backgroundColor: "#7B5BA6", marginTop: 10 },
+  removeButton: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeButtonText: { color: "white", fontSize: 18, fontWeight: "bold" },
 });

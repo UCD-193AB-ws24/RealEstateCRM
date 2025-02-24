@@ -19,7 +19,15 @@ import ProfileScreen from "./screens/ProfileScreen";
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// 🏠 **Bottom Tab Navigator**
+function DriveStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="DriveScreen" component={MapScreen} />
+      <Stack.Screen name="AddPropertyScreen" component={AddPropertyScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function BottomTabs() {
   return (
     <Tab.Navigator
@@ -37,7 +45,7 @@ function BottomTabs() {
         tabBarInactiveTintColor: "gray",
       })}
     >
-      <Tab.Screen name="Drive" component={MapScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Drive" component={DriveStack} options={{ headerShown: false }} />
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Leads" component={LeadListScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
@@ -53,6 +61,7 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {/* <Stack.Screen name="Login" component={LoginScreen} /> */}
           <Stack.Screen name="MainTabs" component={BottomTabs} />
+          <Stack.Screen name="DriveStack" component={DriveStack} />
           <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
           <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
           <Stack.Screen name="CameraScreen" component={CameraScreen} />

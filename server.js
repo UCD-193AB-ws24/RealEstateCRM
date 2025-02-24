@@ -42,11 +42,12 @@ const Lead = sequelize.define(
   "Lead",
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: true },
     address: { type: DataTypes.STRING, allowNull: false },
     city: { type: DataTypes.STRING, allowNull: false },
     state: { type: DataTypes.STRING, allowNull: false },
     zip: { type: DataTypes.STRING, allowNull: false },
-    owner: { type: DataTypes.STRING, allowNull: false },
+    owner: { type: DataTypes.STRING, allowNull: true },
     images: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Lead" },
   },
@@ -75,17 +76,17 @@ app.get("/api/leads", async (req, res) => {
 // Add a new lead without an image (POST route)
 app.post("/api/leads", async (req, res) => {
   try {
-    const { address, city, state, zip, owner, images, status } = req.body;
+    const { name, address, city, state, zip, owner, images, status } = req.body;
 
     console.log("📥 Received lead data:", req.body);
 
     // Validate required fields
-    if (!address || !city || !state || !zip || !owner) {
+    if (!name || !address || !city || !state || !zip || !owner) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     // Save lead in DB
-    const newLead = await Lead.create({ address, city, state, zip, owner, images, status: status || "Lead" });
+    const newLead = await Lead.create({ name, address, city, state, zip, owner, images, status: status || "Lead" });
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -97,10 +98,15 @@ app.post("/api/leads", async (req, res) => {
 app.put("/api/leads/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { address, city, state, zip, owner, status } = req.body;
+    const { name, address, city, state, zip, owner, status, images } = req.body;
+
+    // Validate input
+    if (!name || !address || !city || !state || !zip || !owner) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
     const updatedLead = await Lead.update(
-      { address, city, state, zip, owner, status },
+      { name, address, city, state, zip, owner, status, images },
       { where: { id } }
     );
 
@@ -108,12 +114,16 @@ app.put("/api/leads/:id", async (req, res) => {
       return res.status(404).json({ error: "Lead not found" });
     }
 
-    res.json({ message: "Lead updated successfully" });
+    // ✅ Fetch updated lead data from DB and return it
+    const lead = await Lead.findByPk(id);
+    res.json(lead);
+
   } catch (error) {
     console.error("Error updating lead:", error);
-    res.status(500).json({ error: "Error updating lead" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 // Delete a lead (DELETE route)
 app.delete("/api/leads/:id", async (req, res) => {
@@ -136,23 +146,19 @@ app.delete("/api/leads/:id", async (req, res) => {
 app.post("/api/upload", upload.array("files", 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "No file uploaded" });
+      return res.status(400).json({ error: "No files uploaded" });
     }
 
-    const imageUrls = req.files.map(file => `http://localhost:5001/uploads/${file.filename}` );
+    const imageUrls = req.files.map(file => `http://localhost:5001/uploads/${file.filename}`);
     const { address, city, state, zip, owner } = req.body;
 
-    console.log("received form data:", req.body);
+    console.log("Received form data:", req.body);
 
-    // Validate required fields
     if (!address || !city || !state || !zip || !owner) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Save lead with image URL
     const newLead = await Lead.create({ address, city, state, zip, owner, images: imageUrls });
-
-    console.log("New lead saved:", newLead);
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -160,6 +166,8 @@ app.post("/api/upload", upload.array("files", 5), async (req, res) => {
     res.status(500).json({ error: "Error uploading images" });
   }
 });
+
+
 
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
