@@ -52,7 +52,7 @@ export default function LeadDetailScreen({ route, navigation }) {
 
   const saveLead = async () => {
   try {
-    const updatedLead = { ...editableLead, status }; // Ensure status is updated
+    const updatedLead = { ...editableLead, status, notes: editableLead.notes || "" }; // Ensure status is updated
 
     console.log("Updating lead with data:", updatedLead); // Debugging log
 

@@ -50,43 +50,95 @@ const Lead = sequelize.define(
     owner: { type: DataTypes.STRING, allowNull: true },
     images: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Lead" },
+    userId: { type: DataTypes.STRING, allowNull: false, references: { model: "users", key: "id" } },
   },
   { tableName: "leads", timestamps: false }
 );
 
-// Fetch all leads (GET route)
-app.get("/api/leads", async (req, res) => {
+const User = sequelize.define(
+  "User",
+  {
+    id: { type: DataTypes.STRING, primaryKey: true }, // Use Google ID as primary key
+    name: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true },
+    picture: { type: DataTypes.STRING, allowNull: true },
+  },
+  { tableName: "users", timestamps: true }
+);
+
+
+app.post("/api/users", async (req, res) => {
   try {
+    const { id, name, email, picture } = req.body;
+
+    if (!id || !email) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    console.log("🔥 Received user:", req.body); // Debugging
+
+    // Ensure user ID is a string (Google provides string IDs)
+    const userId = String(id);
+
+    // Check if user already exists
+    let user = await User.findByPk(userId);
+    if (!user) {
+      user = await User.create({ id: userId, name, email, picture });
+      console.log("✅ User created:", user.toJSON());
+    } else {
+      console.log("ℹ️ User already exists:", user.toJSON());
+    }
+
+    res.status(201).json(user);
+  } catch (error) {
+    console.error("❌ Error saving user:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+// Fetch all leads (GET route)
+app.get("/api/leads/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
     const leads = await Lead.findAll({
-      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status"], // Ensure "images" is included
+      where: { userId }, // 🔥 Fetch leads for a specific user
+      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status"],
     });
 
-    const formattedLeads = leads.map((lead) => ({
-      ...lead.toJSON(),
-      images: lead.images || [], // Ensure images is always an array
-    }));
-
-    res.json(formattedLeads);
+    res.json(leads);
   } catch (error) {
     console.error("Error fetching leads:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
+
 // Add a new lead without an image (POST route)
 app.post("/api/leads", async (req, res) => {
   try {
-    const { name, address, city, state, zip, owner, images, status } = req.body;
+    const { name, address, city, state, zip, owner, images, status, userId } = req.body;
 
     console.log("📥 Received lead data:", req.body);
 
-    // Validate required fields
-    if (!address || !city || !state || !zip || !owner) {
+    if (!address || !city || !state || !zip || !owner || !userId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Save lead in DB
-    const newLead = await Lead.create({ name: name || null, address, city, state, zip, owner, images, status: status || "Lead" });
+    // Verify that the user exists
+    // const user = await User.findByPk(userId);
+    // if (!user) {
+    //   return res.status(404).json({ error: "User not found" });
+    // }
+
+    const newLead = await Lead.create({ 
+      name: name || null, 
+      address, city, state, zip, owner, images, 
+      status: status || "Lead",
+      userId // 🔥 Associate lead with user
+    });
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -94,6 +146,7 @@ app.post("/api/leads", async (req, res) => {
     res.status(500).json({ error: "Error adding lead" });
   }
 });
+
 
 app.put("/api/leads/:id", async (req, res) => {
   try {
@@ -147,7 +200,14 @@ app.delete("/api/leads/:id", async (req, res) => {
     
 // Upload Image and Add Property
 app.post("/api/upload", (req, res, next) => {
-  const uploadMiddleware = req.files ? upload.array("files", 5) : upload.single("file");
+  let uploadMiddleware;
+
+  if (req.files && req.files.length > 0) {
+    uploadMiddleware = upload.array("files", 5); // Handle multiple images
+  } else {
+    uploadMiddleware = upload.single("file"); // Handle single image
+  }
+
   uploadMiddleware(req, res, (err) => {
     if (err) {
       return res.status(500).json({ error: "Upload failed", details: err.message });
@@ -160,14 +220,15 @@ app.post("/api/upload", (req, res, next) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
+    // Handle single and multiple image uploads
     const imageUrls = req.file
       ? [`http://localhost:5001/uploads/${req.file.filename}`] // Single file case
-      : req.files.map(file => `http://localhost:5001/uploads/${file.filename}`); // Multiple files case
+      : req.files.map((file) => `http://localhost:5001/uploads/${file.filename}`); // Multiple files case
 
-    res.json({ imageUrls }); // ✅ Return images as an array
+    res.json({ imageUrls }); // ✅ Return array of image URLs
 
   } catch (error) {
-    console.error("Error uploading images:", error);
+    console.error("❌ Error uploading images:", error);
     res.status(500).json({ error: "Error uploading images" });
   }
 });
@@ -182,6 +243,7 @@ const PORT = process.env.PORT || 5001;
 app.listen(PORT, async () => {
   try {
     await sequelize.authenticate();
+    await sequelize.sync();
     console.log("Database connected...");
     console.log(`Server running on port ${PORT}`);
   } catch (error) {

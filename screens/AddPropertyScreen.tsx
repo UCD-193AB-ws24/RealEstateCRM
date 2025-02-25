@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, Scro
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const API_URL = "http://localhost:5001/api/leads";
@@ -16,6 +17,7 @@ const AddPropertyScreen = () => {
 
   const isFromMap = !!latitude && !!longitude;
 
+  const [userId, setUserId] = useState(null);
   const [name, setName] = useState("");
   const [images, setImages] = useState([]);
   const [firstImageUri, setFirstImageUri] = useState(null);
@@ -24,11 +26,26 @@ const AddPropertyScreen = () => {
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [owner, setOwner] = useState("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (isFromMap) {
       getAddressFromCoords(latitude, longitude);
     }
+
+    // const fetchUser = async() => {
+    //   try {
+    //     const storedUser = await SecureStore.getItemAsync("user");
+    //     if (!storedUser) return;
+    //     const parsedUser = JSON.parse(storedUser);
+    //     setUserId(parsedUser.id); // Set user ID from stored data
+    //     console.log("🔥 Fetched user ID:", parsedUser.id);
+    //   } catch (error) {
+    //     console.error("Failed to fetch user:", error);
+    //   }
+    // };
+
+    // fetchUser();
   }, [latitude, longitude]);
 
   const pickImage = async (useCamera = false) => {
@@ -98,7 +115,6 @@ const AddPropertyScreen = () => {
       type: "image/jpeg",
     });
   
-    // ✅ FIX: Explicitly append text fields
     formData.append("address", address.toString());
     formData.append("city", city.toString());
     formData.append("state", state.toString());
@@ -130,82 +146,66 @@ const AddPropertyScreen = () => {
 
   // Function to add property to database
   const handleAddProperty = async () => {
+    const storedUser = await SecureStore.getItemAsync("user");
+    if (!storedUser) return;
+
+    const parsedUser = JSON.parse(storedUser);
+    const userId = parsedUser.id;
+
     if (!address || !city || !state || !zip || !owner) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
   
-    let imageUrls = [];
-  
-    if (images.length > 0) {
-      let formData = new FormData();
-      images.forEach((imgUri, index) => {
-        formData.append("files", {
-          uri: imgUri.startsWith("file://") ? imgUri : `file://${imgUri}`,
-          name: `property-${index}.jpg`,
-          type: "image/jpeg",
-        });
-      });
-  
-      formData.append("address", address);
-      formData.append("city", city);
-      formData.append("state", state);
-      formData.append("zip", zip);
-      formData.append("owner", owner);
-  
-      try {
-        let response = await fetch(IMAGE_UPLOAD_URL, {
-          method: "POST",
-          body: formData,
-          headers: { "Accept": "application/json" },
-        });
-  
-        let data = await response.json();
-        if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
-  
-        console.log("✅ Lead added via /api/upload", data);
-        Alert.alert("Success", "Property added successfully!");
-        navigation.goBack();
-        return; // 🚀 Prevents duplicate call to /api/leads
-      } catch (error) {
-        console.error("Error uploading images:", error);
-        Alert.alert("Error", "Failed to upload images.");
-        return;
-      }
-    }
-  
-    // If no images, add lead separately
-    const newProperty = { name, address, city, state, zip, owner };
+    let newLead = {
+      name,
+      address,
+      city,
+      state,
+      zip,
+      owner,
+      images: images.length > 0 ? images : [],
+      userId,
+      notes,
+    };
   
     try {
-      const response = await fetch(API_URL, {
+      let response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProperty),
+        body: JSON.stringify(newLead),
       });
+  
+      let data = await response.json();
+      console.log("🛬 Server response:", data);
   
       if (!response.ok) throw new Error("Failed to add property");
   
-      console.log("✅ Lead added via /api/leads", await response.json());
       Alert.alert("Success", "Property added successfully!");
       navigation.goBack();
     } catch (error) {
-      console.error("Error adding property:", error);
+      console.error("❌ Error adding property:", error);
       Alert.alert("Error", "Failed to add property.");
     }
   };
+  
+  
+  
   
 
   return (
     <SafeAreaView style={styles.safeContainer} >
     <View style={styles.container}>
-      <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
-        <Text style={styles.photoButtonText}>Take a Picture</Text>
-      </TouchableOpacity>
+      <View style={styles.photoButtonContainer}>
+        <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
+          <Text style={styles.photoButtonText}>Take a Picture</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
-        <Text style={styles.photoButtonText}>Select from Gallery</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
+          <Text style={styles.photoButtonText}>Select from Gallery</Text>
+        </TouchableOpacity>
+      </View>
+
 
       {/* {image && <Image source={{ uri: image }} style={styles.imagePreview} />} */}
 
@@ -225,6 +225,7 @@ const AddPropertyScreen = () => {
         </ScrollView>
       )}
 
+      <ScrollView>
       <Text style={styles.label}>Property Name</Text>
       <TextInput 
         style={styles.input} 
@@ -248,9 +249,19 @@ const AddPropertyScreen = () => {
       <Text style={styles.label}>Owner</Text>
       <TextInput style={styles.input} value={owner} onChangeText={setOwner} placeholder="Enter owner's name" />
 
+      <Text style={styles.label}>Notes</Text>
+      <TextInput
+        style={styles.input}
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Any additional details..."
+        multiline
+      />
+
       <TouchableOpacity style={styles.addButton} onPress={handleAddProperty}>
         <Text style={styles.addButtonText}>Add Property</Text>
       </TouchableOpacity>
+      </ScrollView>
     </View>
     </SafeAreaView>
   );
@@ -259,7 +270,7 @@ const AddPropertyScreen = () => {
 const styles = StyleSheet.create({
   safeContainer: { flex: 1},
   container: { flex: 1, padding: 20 },
-  photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
+  // photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
   photoButtonText: { color: "white", fontSize: 16 },
   imageScroll: { flexDirection: "row", marginBottom: 10 },
   imageContainer: { position: "relative", marginRight: 10 },
@@ -282,6 +293,19 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, marginTop: 5 },
   addButton: { marginTop: 20, backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center" },
   addButtonText: { color: "white", fontSize: 16 },
+  photoButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: "#A078C4",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginHorizontal: 5, // Adds spacing between buttons
+  },
 });
 
 export default AddPropertyScreen;
