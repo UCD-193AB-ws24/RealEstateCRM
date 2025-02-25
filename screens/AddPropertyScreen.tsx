@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, Scro
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const API_URL = "http://localhost:5001/api/leads";
@@ -16,6 +17,7 @@ const AddPropertyScreen = () => {
 
   const isFromMap = !!latitude && !!longitude;
 
+  const [userId, setUserId] = useState(null);
   const [name, setName] = useState("");
   const [images, setImages] = useState([]);
   const [firstImageUri, setFirstImageUri] = useState(null);
@@ -30,6 +32,20 @@ const AddPropertyScreen = () => {
     if (isFromMap) {
       getAddressFromCoords(latitude, longitude);
     }
+
+    // const fetchUser = async() => {
+    //   try {
+    //     const storedUser = await SecureStore.getItemAsync("user");
+    //     if (!storedUser) return;
+    //     const parsedUser = JSON.parse(storedUser);
+    //     setUserId(parsedUser.id); // Set user ID from stored data
+    //     console.log("🔥 Fetched user ID:", parsedUser.id);
+    //   } catch (error) {
+    //     console.error("Failed to fetch user:", error);
+    //   }
+    // };
+
+    // fetchUser();
   }, [latitude, longitude]);
 
   const pickImage = async (useCamera = false) => {
@@ -130,6 +146,12 @@ const AddPropertyScreen = () => {
 
   // Function to add property to database
   const handleAddProperty = async () => {
+    const storedUser = await SecureStore.getItemAsync("user");
+    if (!storedUser) return;
+
+    const parsedUser = JSON.parse(storedUser);
+    const userId = parsedUser.id;
+
     if (!address || !city || !state || !zip || !owner) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
@@ -143,20 +165,19 @@ const AddPropertyScreen = () => {
       zip,
       owner,
       images: images.length > 0 ? images : [],
-      notes
+      userId,
+      notes,
     };
-  
-    console.log("📤 Sending lead data:", newLead); // ✅ Debug frontend request
   
     try {
       let response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" }, // ✅ Make sure this is set
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newLead),
       });
   
       let data = await response.json();
-      console.log("🛬 Server response:", data); // ✅ Debug server response
+      console.log("🛬 Server response:", data);
   
       if (!response.ok) throw new Error("Failed to add property");
   
@@ -167,6 +188,7 @@ const AddPropertyScreen = () => {
       Alert.alert("Error", "Failed to add property.");
     }
   };
+  
   
   
   

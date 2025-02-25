@@ -12,6 +12,13 @@ export default function LoginScreen({ navigation }) {
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: "677796464036-lcia79vgc4akv50inc89tr86mg06e7un.apps.googleusercontent.com",
   });
+  useEffect(() => {
+    console.log("Google Auth Response:", response);
+    if (response?.type === "success") {
+      const { authentication } = response;
+      getUserInfo(authentication.accessToken);
+    }
+  }, [response]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -31,24 +38,28 @@ export default function LoginScreen({ navigation }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const user = await res.json();
-      
+  
+      console.log("🔥 User Info from Google:", user); // Debugging
+  
       setUserInfo(user);
       await SecureStore.setItemAsync("user", JSON.stringify(user));
   
       // Send user data to backend
-      await fetch("http://localhost:5001/api/users", {
+      const response = await fetch("http://localhost:5001/api/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(user),
       });
   
+      const data = await response.json();
+      console.log("✅ Response from backend:", data); // Debugging
+  
       navigation.replace("MainTabs"); // Redirect to main app
     } catch (error) {
-      console.error("Error fetching user info:", error);
+      console.error("❌ Error fetching user info:", error);
     }
   }
+  
   
   return (
     <View style={styles.container}>

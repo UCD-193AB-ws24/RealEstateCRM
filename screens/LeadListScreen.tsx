@@ -9,6 +9,8 @@ import * as Sharing from "expo-sharing";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DropDownPicker from "react-native-dropdown-picker";
 import { Provider } from "react-native-paper";
+import * as SecureStore from "expo-secure-store";
+import axios from "axios";
 
 
 const API_URL = "http://localhost:5001/api/leads";
@@ -30,6 +32,7 @@ export default function LeadListScreen({ navigation }) {
   const [cityOpen, setCityOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
   const [onlyWithImages, setOnlyWithImages] = useState(false);
+  const [user, setUser] = useState(null);
   const [actionsVisible, setActionsVisible] = useState(false);
 
   const filteredLeads = leads.filter((lead) => {
@@ -56,36 +59,31 @@ export default function LeadListScreen({ navigation }) {
   
   const fetchLeads = async () => {
     try {
-      const response = await fetch(API_URL);
-      const data = await response.json();
-      console.log("Fetched leads:", data);
+      const storedUser = await SecureStore.getItemAsync("user");
+      if (!storedUser) return;
   
-      // Convert addresses to lat/lng
+      const parsedUser = JSON.parse(storedUser);
+      const response = await axios.get(`${API_URL}/${parsedUser.id}`);
+      const data = response.data;
+  
       const leadsWithCoordinates = await Promise.all(
         data.map(async (lead) => {
-          let geocode = await Location.geocodeAsync(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
-          if (geocode.length > 0) {
-            return { ...lead, latitude: geocode[0].latitude, longitude: geocode[0].longitude };
-          } else {
-            return lead; // Keep the lead if geocoding fails
+          if (!lead.latitude || !lead.longitude) {
+            let geocode = await Location.geocodeAsync(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
+            if (geocode.length > 0) {
+              return { ...lead, latitude: geocode[0].latitude, longitude: geocode[0].longitude };
+            }
           }
+          return lead;
         })
       );
   
       setLeads(leadsWithCoordinates);
-  
-      // if (leadsWithCoordinates.length > 0) {
-      //   setRegion({
-      //     latitude: leadsWithCoordinates[0].latitude,
-      //     longitude: leadsWithCoordinates[0].longitude,
-      //     latitudeDelta: 0.05,
-      //     longitudeDelta: 0.05,
-      //   });
-      // }
     } catch (error) {
       console.error("Error fetching leads:", error);
     }
   };
+  
 
 
 const openActionsMenu = () => {
@@ -181,19 +179,14 @@ const openActionsMenu = () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.warn("Location permission denied, using default Davis location.");
-        setRegion({
-          latitude: 38.5449,
-          longitude: -121.7405,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
         return;
       }
   
       let location = await Location.getCurrentPositionAsync({});
-  
+      
       // Check if running in a simulator
-      const isSimulator = location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
+      const isSimulator = 
+        location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
   
       setRegion({
         latitude: isSimulator ? 38.5449 : location.coords.latitude,
@@ -201,11 +194,11 @@ const openActionsMenu = () => {
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       });
+  
     } catch (error) {
       console.error("Error getting user location:", error);
     }
-  };
-  
+  };  
   
 
   // const filteredLeads = leads.filter((lead) =>
