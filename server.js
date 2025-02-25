@@ -147,7 +147,14 @@ app.delete("/api/leads/:id", async (req, res) => {
     
 // Upload Image and Add Property
 app.post("/api/upload", (req, res, next) => {
-  const uploadMiddleware = req.files ? upload.array("files", 5) : upload.single("file");
+  let uploadMiddleware;
+
+  if (req.files && req.files.length > 0) {
+    uploadMiddleware = upload.array("files", 5); // Handle multiple images
+  } else {
+    uploadMiddleware = upload.single("file"); // Handle single image
+  }
+
   uploadMiddleware(req, res, (err) => {
     if (err) {
       return res.status(500).json({ error: "Upload failed", details: err.message });
@@ -160,14 +167,15 @@ app.post("/api/upload", (req, res, next) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
+    // Handle single and multiple image uploads
     const imageUrls = req.file
       ? [`http://localhost:5001/uploads/${req.file.filename}`] // Single file case
-      : req.files.map(file => `http://localhost:5001/uploads/${file.filename}`); // Multiple files case
+      : req.files.map((file) => `http://localhost:5001/uploads/${file.filename}`); // Multiple files case
 
-    res.json({ imageUrls }); // ✅ Return images as an array
+    res.json({ imageUrls }); // ✅ Return array of image URLs
 
   } catch (error) {
-    console.error("Error uploading images:", error);
+    console.error("❌ Error uploading images:", error);
     res.status(500).json({ error: "Error uploading images" });
   }
 });

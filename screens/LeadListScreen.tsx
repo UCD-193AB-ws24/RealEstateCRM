@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image, ActionSheetIOS } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image, ActionSheetIOS, ScrollView } from "react-native";
 import { Card, Button, Menu, Divider } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
@@ -279,6 +279,7 @@ const openActionsMenu = () => {
         )}
 
         {!isMapView ? (
+          <ScrollView>
           <FlatList
             data={filteredLeads}
             keyExtractor={(item) => item.id.toString()}
@@ -299,8 +300,9 @@ const openActionsMenu = () => {
               </TouchableOpacity>
             )}
           />
+          </ScrollView>
         ) : (
-          <MapView style={styles.map} region={region} showsUserLocation={true}>
+          <MapView key={isMapView} style={styles.map} region={region} showsUserLocation={true}>
             {filteredLeads.map((lead, index) => (
               lead.latitude && lead.longitude && (
                 <Marker

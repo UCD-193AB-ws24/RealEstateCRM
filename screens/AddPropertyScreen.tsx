@@ -24,6 +24,7 @@ const AddPropertyScreen = () => {
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [owner, setOwner] = useState("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (isFromMap) {
@@ -98,7 +99,6 @@ const AddPropertyScreen = () => {
       type: "image/jpeg",
     });
   
-    // ✅ FIX: Explicitly append text fields
     formData.append("address", address.toString());
     formData.append("city", city.toString());
     formData.append("state", state.toString());
@@ -135,77 +135,55 @@ const AddPropertyScreen = () => {
       return;
     }
   
-    let imageUrls = [];
+    let newLead = {
+      name,
+      address,
+      city,
+      state,
+      zip,
+      owner,
+      images: images.length > 0 ? images : [],
+      notes
+    };
   
-    if (images.length > 0) {
-      let formData = new FormData();
-      images.forEach((imgUri, index) => {
-        formData.append("files", {
-          uri: imgUri.startsWith("file://") ? imgUri : `file://${imgUri}`,
-          name: `property-${index}.jpg`,
-          type: "image/jpeg",
-        });
-      });
-  
-      formData.append("address", address);
-      formData.append("city", city);
-      formData.append("state", state);
-      formData.append("zip", zip);
-      formData.append("owner", owner);
-  
-      try {
-        let response = await fetch(IMAGE_UPLOAD_URL, {
-          method: "POST",
-          body: formData,
-          headers: { "Accept": "application/json" },
-        });
-  
-        let data = await response.json();
-        if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
-  
-        console.log("✅ Lead added via /api/upload", data);
-        Alert.alert("Success", "Property added successfully!");
-        navigation.goBack();
-        return; // 🚀 Prevents duplicate call to /api/leads
-      } catch (error) {
-        console.error("Error uploading images:", error);
-        Alert.alert("Error", "Failed to upload images.");
-        return;
-      }
-    }
-  
-    // If no images, add lead separately
-    const newProperty = { name, address, city, state, zip, owner };
+    console.log("📤 Sending lead data:", newLead); // ✅ Debug frontend request
   
     try {
-      const response = await fetch(API_URL, {
+      let response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProperty),
+        headers: { "Content-Type": "application/json" }, // ✅ Make sure this is set
+        body: JSON.stringify(newLead),
       });
+  
+      let data = await response.json();
+      console.log("🛬 Server response:", data); // ✅ Debug server response
   
       if (!response.ok) throw new Error("Failed to add property");
   
-      console.log("✅ Lead added via /api/leads", await response.json());
       Alert.alert("Success", "Property added successfully!");
       navigation.goBack();
     } catch (error) {
-      console.error("Error adding property:", error);
+      console.error("❌ Error adding property:", error);
       Alert.alert("Error", "Failed to add property.");
     }
   };
+  
+  
   
 
   return (
     <SafeAreaView style={styles.safeContainer} >
     <View style={styles.container}>
-      <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
-        <Text style={styles.photoButtonText}>Take a Picture</Text>
-      </TouchableOpacity>
+      <View style={styles.photoButtonContainer}>
+        <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
+          <Text style={styles.photoButtonText}>Take a Picture</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
-        <Text style={styles.photoButtonText}>Select from Gallery</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
+          <Text style={styles.photoButtonText}>Select from Gallery</Text>
+        </TouchableOpacity>
+      </View>
+
 
       {/* {image && <Image source={{ uri: image }} style={styles.imagePreview} />} */}
 
@@ -225,6 +203,7 @@ const AddPropertyScreen = () => {
         </ScrollView>
       )}
 
+      <ScrollView>
       <Text style={styles.label}>Property Name</Text>
       <TextInput 
         style={styles.input} 
@@ -248,9 +227,19 @@ const AddPropertyScreen = () => {
       <Text style={styles.label}>Owner</Text>
       <TextInput style={styles.input} value={owner} onChangeText={setOwner} placeholder="Enter owner's name" />
 
+      <Text style={styles.label}>Notes</Text>
+      <TextInput
+        style={styles.input}
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Any additional details..."
+        multiline
+      />
+
       <TouchableOpacity style={styles.addButton} onPress={handleAddProperty}>
         <Text style={styles.addButtonText}>Add Property</Text>
       </TouchableOpacity>
+      </ScrollView>
     </View>
     </SafeAreaView>
   );
@@ -259,7 +248,7 @@ const AddPropertyScreen = () => {
 const styles = StyleSheet.create({
   safeContainer: { flex: 1},
   container: { flex: 1, padding: 20 },
-  photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
+  // photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
   photoButtonText: { color: "white", fontSize: 16 },
   imageScroll: { flexDirection: "row", marginBottom: 10 },
   imageContainer: { position: "relative", marginRight: 10 },
@@ -282,6 +271,19 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, marginTop: 5 },
   addButton: { marginTop: 20, backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center" },
   addButtonText: { color: "white", fontSize: 16 },
+  photoButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: "#A078C4",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginHorizontal: 5, // Adds spacing between buttons
+  },
 });
 
 export default AddPropertyScreen;
