@@ -58,8 +58,8 @@ export default function App() {
   return (
     <PropertyProvider>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {/* <Stack.Screen name="Login" component={LoginScreen} /> */}
+        <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={BottomTabs} />
           <Stack.Screen name="DriveStack" component={DriveStack} />
           <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />

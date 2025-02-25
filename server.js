@@ -54,6 +54,40 @@ const Lead = sequelize.define(
   { tableName: "leads", timestamps: false }
 );
 
+const User = sequelize.define(
+  "User",
+  {
+    id: { type: DataTypes.STRING, primaryKey: true }, // Use Google ID as primary key
+    name: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true },
+    picture: { type: DataTypes.STRING, allowNull: true },
+  },
+  { tableName: "users", timestamps: true }
+);
+
+
+app.post("/api/users", async (req, res) => {
+  try {
+    const { id, name, email, picture } = req.body;
+
+    if (!id || !email) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Check if user already exists
+    let user = await User.findByPk(id);
+    if (!user) {
+      user = await User.create({ id, name, email, picture });
+    }
+
+    res.status(201).json(user);
+  } catch (error) {
+    console.error("Error saving user:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
 // Fetch all leads (GET route)
 app.get("/api/leads", async (req, res) => {
   try {
@@ -190,6 +224,7 @@ const PORT = process.env.PORT || 5001;
 app.listen(PORT, async () => {
   try {
     await sequelize.authenticate();
+    await sequelize.sync();
     console.log("Database connected...");
     console.log(`Server running on port ${PORT}`);
   } catch (error) {
