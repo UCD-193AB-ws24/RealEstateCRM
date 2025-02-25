@@ -273,6 +273,7 @@ const openActionsMenu = () => {
 
         {!isMapView ? (
           <ScrollView>
+          {console.log("Filtered Leads:", filteredLeads)}
           <FlatList
             data={filteredLeads}
             keyExtractor={(item) => item.id.toString()}
@@ -295,6 +296,9 @@ const openActionsMenu = () => {
           />
           </ScrollView>
         ) : (
+          <>
+          {console.log("Rendering map with region:", region)}
+          {console.log("Markers:", filteredLeads.map(l => ({ lat: l.latitude, lon: l.longitude })))}
           <MapView key={isMapView} style={styles.map} region={region} showsUserLocation={true}>
             {filteredLeads.map((lead, index) => (
               lead.latitude && lead.longitude && (
@@ -307,6 +311,7 @@ const openActionsMenu = () => {
               )
             ))}
           </MapView>
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -325,7 +330,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: "#A078C4", borderRadius: 5, maxWidth: 100, height: 40 },
   card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
   address: { fontSize: 16, fontWeight: "bold", marginTop: 5 },
-  map: { flex: 1, borderRadius: 10 },
+  map: { flex: 1, borderRadius: 10, height: 400 },
   leadImage: {
     width: "100%",
     height: 200,
