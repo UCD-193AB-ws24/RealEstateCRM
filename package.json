@@ -18,12 +18,14 @@
     "deprecated-react-native-prop-types": "^5.0.0",
     "dotenv": "^16.4.7",
     "expo": "~48.0.15",
+    "expo-auth-session": "~4.0.3",
     "expo-camera": "~13.2.1",
     "expo-image-picker": "~14.1.1",
     "expo-location": "~15.0.1",
     "expo-sharing": "^13.0.1",
     "expo-status-bar": "~1.4.4",
     "express": "^4.21.2",
+    "firebase": "^11.3.1",
     "fs": "^0.0.1-security",
     "iconv-lite": "^0.6.3",
     "multer": "^1.4.5-lts.1",
@@ -41,7 +43,8 @@
     "react-native-screens": "~3.20.0",
     "react-native-snap-carousel": "^3.9.1",
     "react-native-vector-icons": "^10.2.0",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.5",
+    "undefined": "expo-auth-session/providers/google"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
