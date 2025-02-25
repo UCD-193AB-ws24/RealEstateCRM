@@ -51,6 +51,7 @@ const Lead = sequelize.define(
     images: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Lead" },
     userId: { type: DataTypes.STRING, allowNull: false, references: { model: "users", key: "id" } },
+    notes: { type: DataTypes.TEXT, allowNull: true },
   },
   { tableName: "leads", timestamps: false }
 );
@@ -105,7 +106,7 @@ app.get("/api/leads/:userId", async (req, res) => {
 
     const leads = await Lead.findAll({
       where: { userId }, // 🔥 Fetch leads for a specific user
-      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status"],
+      attributes: ["name", "id", "address", "city", "state", "zip", "owner", "images", "status", "notes"],
     });
 
     res.json(leads);
@@ -119,7 +120,7 @@ app.get("/api/leads/:userId", async (req, res) => {
 // Add a new lead without an image (POST route)
 app.post("/api/leads", async (req, res) => {
   try {
-    const { name, address, city, state, zip, owner, images, status, userId } = req.body;
+    const { name, address, city, state, zip, owner, images, status, notes, userId } = req.body;
 
     console.log("📥 Received lead data:", req.body);
 
@@ -135,7 +136,7 @@ app.post("/api/leads", async (req, res) => {
 
     const newLead = await Lead.create({ 
       name: name || null, 
-      address, city, state, zip, owner, images, 
+      address, city, state, zip, owner, images, notes,
       status: status || "Lead",
       userId // 🔥 Associate lead with user
     });
