@@ -1,5 +1,5 @@
 const express = require("express");
-const { Sequelize, DataTypes } = require("sequelize");
+const { Sequelize, DataTypes, Op } = require("sequelize");
 const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
@@ -94,6 +94,32 @@ app.post("/api/users", async (req, res) => {
   } catch (error) {
     console.error("❌ Error saving user:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/stats", async (req, res) => {
+  try {
+    const totalLeads = await Lead.count();
+    const dealsClosed = await Lead.count({ where: { status: "Sale" } });
+    const propertiesContacted = await Lead.count({ where: { status: "Contact" } });
+    const offersMade = await Lead.count({ where: { status: "Offer" } });
+    const activeListings = await Lead.count({ where: { status: { [Op.in]: ["Lead", "Offer", "Contact"] } } });
+
+    // Calculate percentage of deals closed
+    const percentageDealsClosed = totalLeads > 0 ? ((dealsClosed / totalLeads) * 100).toFixed(2) : "0.00";
+
+    res.json({
+      totalLeads,
+      dealsClosed,
+      propertiesContacted,
+      offersMade,
+      activeListings,
+      percentageDealsClosed: percentageDealsClosed + "%"
+    });
+
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
