@@ -8,7 +8,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
-import { ViewPropTypes } from "deprecated-react-native-prop-types";
 import LeadListScreen from "./LeadListScreen";
 
 
@@ -68,7 +67,7 @@ export default function LeadDetailScreen({ route, navigation }) {
     }
 
     setHasChanges(false);
-    navigation.navigate("LeadListScreen"); // ✅ Navigate to list view
+    navigation.navigate("Leads"); // ✅ Navigate to list view
 
   } catch (error) {
     console.error("Error updating lead:", error);
