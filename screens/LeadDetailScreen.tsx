@@ -10,9 +10,9 @@ import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import LeadListScreen from "./LeadListScreen";
 
-
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
+const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+const API_URL = `${baseUrl}/api/leads`;
+const IMAGE_UPLOAD_URL = `${baseUrl}/api/upload`;
 
 export default function LeadDetailScreen({ route, navigation }) {
   const { lead } = route.params;

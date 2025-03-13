@@ -8,6 +8,8 @@ const bodyParser = require("body-parser");
 
 require("dotenv").config();
 
+const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
@@ -249,8 +251,8 @@ app.post("/api/upload", (req, res, next) => {
 
     // Handle single and multiple image uploads
     const imageUrls = req.file
-      ? [`http://localhost:5001/uploads/${req.file.filename}`] // Single file case
-      : req.files.map((file) => `http://localhost:5001/uploads/${file.filename}`); // Multiple files case
+      ? [`${baseUrl}/uploads/${req.file.filename}`] // Single file case
+      : req.files.map((file) => `${baseUrl}/uploads/${file.filename}`); // Multiple files case
 
     res.json({ imageUrls }); // ✅ Return array of image URLs
 

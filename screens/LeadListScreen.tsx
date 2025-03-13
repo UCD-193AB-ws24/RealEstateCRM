@@ -12,9 +12,9 @@ import { Provider } from "react-native-paper";
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 
-
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
+const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+const API_URL = `${baseUrl}/api/leads`;
+const IMAGE_UPLOAD_URL = `${baseUrl}/api/uploads`;
 
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");

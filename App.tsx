@@ -6,7 +6,6 @@ import { PropertyProvider } from "./contexts/PropertyContext";
 import { Ionicons } from "@expo/vector-icons"; // Import icons for bottom tabs
 
 import HomeScreen from "./screens/HomeScreen";
-import PropertyDetailScreen from "./screens/PropertyDetailScreen";
 import LoginScreen from "./screens/LoginScreen";
 import AddPropertyScreen from "./screens/AddPropertyScreen";
 import CameraScreen from "./screens/CameraScreen";
@@ -62,7 +61,6 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={BottomTabs} />
           <Stack.Screen name="DriveStack" component={DriveStack} />
-          <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
           <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
           <Stack.Screen name="CameraScreen" component={CameraScreen} />
           <Stack.Screen name="GalleryScreen" component={GalleryScreen} />

@@ -6,6 +6,8 @@ import * as SecureStore from "expo-secure-store";
 
 WebBrowser.maybeCompleteAuthSession();
 
+const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+
 export default function LoginScreen({ navigation }) {
   const [userInfo, setUserInfo] = useState(null);
 
@@ -45,7 +47,7 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync("user", JSON.stringify(user));
   
       // Send user data to backend
-      const response = await fetch("http://localhost:5001/api/users", {
+      const response = await fetch(`${baseUrl}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(user),

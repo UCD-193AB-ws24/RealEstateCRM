@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 
+const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
@@ -30,7 +32,7 @@ const HomeScreen = () => {
   // Function to fetch stats from the backend
   const fetchStats = async () => {
     try {
-      const response = await fetch("http://localhost:5001/api/stats"); // Replace with your API URL
+      const response = await fetch(`${baseUrl}/api/stats`); // Replace with your API URL
       const data = await response.json();
       setStats(data);
     } catch (error) {
