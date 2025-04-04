@@ -12,7 +12,8 @@ import { Provider } from "react-native-paper";
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 
-const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+const baseUrl = "http://34.57.202.249:5001";
+console.log("base url", baseUrl);
 const API_URL = `${baseUrl}/api/leads`;
 const IMAGE_UPLOAD_URL = `${baseUrl}/api/uploads`;
 
@@ -21,10 +22,10 @@ export default function LeadListScreen({ navigation }) {
   const [isMapView, setIsMapView] = useState(false);
   const [leads, setLeads] = useState([]);
   const [region, setRegion] = useState({
-    latitude: 38.5449, // Default to Davis, CA
-    longitude: -121.7405,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: 37.79066, // Default to Google SF
+    longitude: -122.39120,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
   });
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(null);
@@ -55,6 +56,12 @@ export default function LeadListScreen({ navigation }) {
 
     return unsubscribe;
   }, [navigation]);
+
+  useEffect(() => {
+    if (!isMapView) {
+      fetchLeads();
+    }
+  }, [isMapView]);
 
   
   const fetchLeads = async () => {
@@ -185,15 +192,15 @@ const openActionsMenu = () => {
       let location = await Location.getCurrentPositionAsync({});
       
       // Check if running in a simulator
-      const isSimulator = 
-        location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
+      // const isSimulator = 
+      //   location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
   
-      setRegion({
-        latitude: isSimulator ? 38.5449 : location.coords.latitude,
-        longitude: isSimulator ? -121.7405 : location.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
+      // setRegion({
+      //   latitude: isSimulator ? 38.5449 : location.coords.latitude,
+      //   longitude: isSimulator ? -121.7405 : location.coords.longitude,
+      //   latitudeDelta: 0.05,
+      //   longitudeDelta: 0.05,
+      // });
   
     } catch (error) {
       console.error("Error getting user location:", error);
@@ -299,7 +306,7 @@ const openActionsMenu = () => {
           <>
           {console.log("Rendering map with region:", region)}
           {console.log("Markers:", filteredLeads.map(l => ({ lat: l.latitude, lon: l.longitude })))}
-          <MapView key={isMapView} style={styles.map} region={region} showsUserLocation={true}>
+          <MapView provider="google" key={isMapView} style={{ width: "100%", height: 580 }} region={region} showsUserLocation={true}>
             {filteredLeads.map((lead, index) => (
               lead.latitude && lead.longitude && (
                 <Marker

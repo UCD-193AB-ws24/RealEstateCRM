@@ -8,7 +8,7 @@ const bodyParser = require("body-parser");
 
 require("dotenv").config();
 
-const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+const baseUrl = "http://34.57.202.249:5001";
 
 const app = express();
 app.use(cors());

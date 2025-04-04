@@ -9,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // const API_URL = "http://localhost:5001/api/leads";
 // const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 
-const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+const baseUrl = "http://34.57.202.249:5001";
 const API_URL = `${baseUrl}/api/leads`;
 const IMAGE_UPLOAD_URL = `${baseUrl}/api/upload`;
 

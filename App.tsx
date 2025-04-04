@@ -4,6 +4,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PropertyProvider } from "./contexts/PropertyContext";
 import { Ionicons } from "@expo/vector-icons"; // Import icons for bottom tabs
+import { LogBox } from "react-native";
 
 import HomeScreen from "./screens/HomeScreen";
 import LoginScreen from "./screens/LoginScreen";
@@ -14,6 +15,8 @@ import MapScreen from "./screens/MapScreen";
 import LeadListScreen from "./screens/LeadListScreen";
 import LeadDetailScreen from "./screens/LeadDetailScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+
+LogBox.ignoreAllLogs();
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();

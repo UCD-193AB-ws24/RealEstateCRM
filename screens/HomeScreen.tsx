@@ -4,8 +4,9 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
+import axios from "axios";
 
-const baseUrl = process.env.BASE_URL || "http://localhost:5001";
+const baseUrl = "http://34.57.202.249:5001/api/stats";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -30,10 +31,17 @@ const HomeScreen = () => {
   }, []);
 
   // Function to fetch stats from the backend
-  const fetchStats = async () => {
+  const fetchStats = async (userId) => {
     try {
-      const response = await fetch(`${baseUrl}/api/stats`); // Replace with your API URL
-      const data = await response.json();
+      const response = await axios.get(`${baseUrl}/${userId}`); // Replace with your API URL
+      console.log("response ", response);
+      const data = await response.data;
+
+      // const parsedUser = JSON.parse(storedUser);
+      // const response = await axios.get(`${API_URL}/${parsedUser.id}`);
+      // const data = response.data;
+
+      console.log("data ", data);
       setStats(data);
     } catch (error) {
       Alert.alert("Error", "Failed to fetch stats from the backend");
@@ -44,7 +52,17 @@ const HomeScreen = () => {
   // Fetch stats whenever the screen is focused
   useFocusEffect(
     useCallback(() => {
-      fetchStats();
+      const fetchData = async () => {
+        const storedUser = await SecureStore.getItemAsync("user");
+        console.log("stored user:", storedUser);
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          await fetchStats(parsedUser.id);
+        }
+      }
+      // fetchStats();
+      fetchData();
     }, [])
   );
 
