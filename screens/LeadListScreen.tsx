@@ -17,6 +17,29 @@ console.log("base url", baseUrl);
 const API_URL = `${baseUrl}/api/leads`;
 const IMAGE_UPLOAD_URL = `${baseUrl}/api/uploads`;
 
+const GEOCODING_API_KEY = "AIzaSyDKpk8z287dqGyFBMBgw9svuPJJjBESgrA";
+
+const getCoordsFromAddress = async (address) => {
+  try {
+    const encodedAddress = encodeURIComponent(address);
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GEOCODING_API_KEY}`
+    );
+    const data = await response.json();
+
+    if (data.status === "OK" && data.results.length > 0) {
+      const { lat, lng } = data.results[0].geometry.location;
+      return { latitude: lat, longitude: lng };
+    } else {
+      console.warn("Geocoding failed:", data.status, address);
+      return null;
+    }
+  } catch (error) {
+    console.error("Google Geocoding error:", error);
+    return null;
+  }
+}
+
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapView, setIsMapView] = useState(false);
@@ -76,9 +99,9 @@ export default function LeadListScreen({ navigation }) {
       const leadsWithCoordinates = await Promise.all(
         data.map(async (lead) => {
           if (!lead.latitude || !lead.longitude) {
-            let geocode = await Location.geocodeAsync(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
-            if (geocode.length > 0) {
-              return { ...lead, latitude: geocode[0].latitude, longitude: geocode[0].longitude };
+            const coords = await getCoordsFromAddress(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
+            if (coords) {
+              return { ...lead, latitude: coords.latitude, longitude: coords.longitude };
             }
           }
           return lead;
