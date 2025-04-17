@@ -11,20 +11,45 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { Provider } from "react-native-paper";
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
+import * as Linking from "expo-linking";
+import { Alert, Linking as RNLinking } from "react-native";
 
+const baseUrl = "http://34.57.202.249:5001";
+const API_URL = `${baseUrl}/api/leads`;
+const IMAGE_UPLOAD_URL = `${baseUrl}/api/uploads`;
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "https://localhost:5001/api/uploads";
+const GEOCODING_API_KEY = "";
+
+const getCoordsFromAddress = async (address) => {
+  try {
+    const encodedAddress = encodeURIComponent(address);
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GEOCODING_API_KEY}`
+    );
+    const data = await response.json();
+
+    if (data.status === "OK" && data.results.length > 0) {
+      const { lat, lng } = data.results[0].geometry.location;
+      return { latitude: lat, longitude: lng };
+    } else {
+      console.warn("Geocoding failed:", data.status, address);
+      return null;
+    }
+  } catch (error) {
+    console.error("Google Geocoding error:", error);
+    return null;
+  }
+}
 
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapView, setIsMapView] = useState(false);
   const [leads, setLeads] = useState([]);
   const [region, setRegion] = useState({
-    latitude: 38.5449, // Default to Davis, CA
-    longitude: -121.7405,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: 37.79066, // Default to Google SF
+    longitude: -122.39120,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
   });
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(null);
@@ -34,6 +59,7 @@ export default function LeadListScreen({ navigation }) {
   const [onlyWithImages, setOnlyWithImages] = useState(false);
   const [user, setUser] = useState(null);
   const [actionsVisible, setActionsVisible] = useState(false);
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState(null);
 
   const filteredLeads = leads.filter((lead) => {
     return (
@@ -56,6 +82,12 @@ export default function LeadListScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
+  useEffect(() => {
+    if (!isMapView) {
+      fetchLeads();
+    }
+  }, [isMapView]);
+
   
   const fetchLeads = async () => {
     try {
@@ -69,9 +101,9 @@ export default function LeadListScreen({ navigation }) {
       const leadsWithCoordinates = await Promise.all(
         data.map(async (lead) => {
           if (!lead.latitude || !lead.longitude) {
-            let geocode = await Location.geocodeAsync(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
-            if (geocode.length > 0) {
-              return { ...lead, latitude: geocode[0].latitude, longitude: geocode[0].longitude };
+            const coords = await getCoordsFromAddress(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`);
+            if (coords) {
+              return { ...lead, latitude: coords.latitude, longitude: coords.longitude };
             }
           }
           return lead;
@@ -131,6 +163,103 @@ const openActionsMenu = () => {
     }
   };
 
+  const getAccessToken = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("accessToken");
+      return token;
+    } catch (error) {
+      console.error("Error retrieving access token:", error);
+      return null;
+    }
+  }
+
+  const createSheetAndExport = async () => {
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      alert("Access token not found. Please log in again.");
+      return;
+    }
+
+    try {
+
+      const sheetTitle = "Leads Export";
+
+      const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          properties: { title: sheetTitle },
+        }),
+      });
+
+      const createData = await createRes.json();
+
+      if (!createRes.ok) {
+        console.error("Sheet creation failed:", createData);
+        alert("Failed to create sheet: " + (createData.error?.message || "Unknown error"));
+        return;
+      }
+
+      const spreadsheetId = createData.spreadsheetId;
+
+      if (!spreadsheetId) {
+        console.warn("No spreadsheetId returned:", createData);
+        alert("Sheet created, but couldn't retrieve its ID.");
+        return;
+      }
+
+      // Step 2: Write the leads data
+      const rows = [
+        ['Name', 'Address', 'City', 'State', 'Zip', 'Owner', 'Status'],
+        ...leads.map(lead => [
+          lead.name || '',
+          lead.address,
+          lead.city,
+          lead.state,
+          lead.zip,
+          lead.owner || '',
+          lead.status,
+        ]),
+      ];
+
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:append?valueInputOption=RAW`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: rows,
+        }),
+      });
+
+      // alert(`Sheet created! View it here: https://docs.google.com/spreadsheets/d/${spreadsheetId}`);
+      const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+      Alert.alert(
+        "Export Successful",
+        "Your leads have been exported to Google Sheets.",
+        [
+          {
+            text: "Open Sheet",
+            onPress: () => RNLinking.openURL(url),
+            style: "default",
+          },
+          {
+            text: "OK",
+            style: "cancel",
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (err) {
+      console.error("Unexpected error during export:", err);
+      alert("Something went wrong creating the sheet.");
+    }
+  }
+
   const resetFilters = () => {
     setSelectedStatus(null);
     setSelectedCity(null);
@@ -185,15 +314,15 @@ const openActionsMenu = () => {
       let location = await Location.getCurrentPositionAsync({});
       
       // Check if running in a simulator
-      const isSimulator = 
-        location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
+      // const isSimulator = 
+      //   location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
   
-      setRegion({
-        latitude: isSimulator ? 38.5449 : location.coords.latitude,
-        longitude: isSimulator ? -121.7405 : location.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
+      // setRegion({
+      //   latitude: isSimulator ? 38.5449 : location.coords.latitude,
+      //   longitude: isSimulator ? -121.7405 : location.coords.longitude,
+      //   latitudeDelta: 0.05,
+      //   longitudeDelta: 0.05,
+      // });
   
     } catch (error) {
       console.error("Error getting user location:", error);
@@ -225,12 +354,21 @@ const openActionsMenu = () => {
           {/* 🔹 Filter Controls */}
           <Button mode="contained" style={styles.button} onPress={() => setFiltersVisible(!filtersVisible)}>Filters</Button>
 
-          <Button mode="contained" style={styles.button} onPress={openActionsMenu}>
+          {/* <Button mode="contained" style={styles.button} onPress={openActionsMenu}>
             Actions
-          </Button>
+          </Button> */}
 
           {/* Export Button */}
-          <Button mode="contained" style={styles.button} onPress={exportToCSV}>Export</Button>
+          <Button mode="contained" style={styles.button} onPress={createSheetAndExport}>Export</Button>
+          {spreadsheetUrl && (
+            <Button
+              mode="contained"
+              style={[styles.button, { marginTop: 10 }]}
+              onPress={() => Linking.openURL(spreadsheetUrl)}
+            >
+              Open Google Sheet
+            </Button>
+          )}
         </View>
 
         {filtersVisible && (
@@ -253,7 +391,18 @@ const openActionsMenu = () => {
             <DropDownPicker
               open={cityOpen}
               value={selectedCity}
-              items={[...new Set(leads.map((lead) => ({ label: lead.city, value: lead.city })))]}
+              items={
+                Array.from(
+                  new Map(
+                    leads
+                      .filter(lead => lead.city) // remove null/undefined cities
+                      .map(lead => {
+                        const normalized = lead.city.trim().toLowerCase();
+                        return [normalized, { label: lead.city.trim(), value: lead.city.trim() }];
+                      })
+                  ).values()
+                )
+              }
               setOpen={setCityOpen}
               setValue={setSelectedCity}
               placeholder="Filter by City"
@@ -273,10 +422,11 @@ const openActionsMenu = () => {
 
         {!isMapView ? (
           <ScrollView>
-          {console.log("Filtered Leads:", filteredLeads)}
+          {/* {console.log("Filtered Leads:", filteredLeads)} */}
           <FlatList
             data={filteredLeads}
             keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={{ paddingBottom: 100 }}
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => navigation.navigate("LeadDetails", { lead: item })}>
                 <Card style={styles.card}>
@@ -299,7 +449,7 @@ const openActionsMenu = () => {
           <>
           {console.log("Rendering map with region:", region)}
           {console.log("Markers:", filteredLeads.map(l => ({ lat: l.latitude, lon: l.longitude })))}
-          <MapView key={isMapView} style={styles.map} region={region} showsUserLocation={true}>
+          <MapView provider="google" key={isMapView} style={{ width: "100%", height: 580 }} region={region} showsUserLocation={true}>
             {filteredLeads.map((lead, index) => (
               lead.latitude && lead.longitude && (
                 <Marker
@@ -326,8 +476,19 @@ const styles = StyleSheet.create({
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 16 },
   toggleText: { fontSize: 14, marginRight: 5, fontWeight: "bold" },
-  buttonRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  button: { backgroundColor: "#A078C4", borderRadius: 5, maxWidth: 100, height: 40 },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+    width: "100%", // Full width of container
+  },
+  button: {
+    backgroundColor: "#A078C4",
+    borderRadius: 5,
+    flex: 1, // Take up equal space
+    height: 40,
+    marginHorizontal: 5, // Small horizontal margin between the buttons
+  },
   card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
   address: { fontSize: 16, fontWeight: "bold", marginTop: 5 },
   map: { flex: 1, borderRadius: 10, height: 400 },

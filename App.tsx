@@ -4,9 +4,9 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PropertyProvider } from "./contexts/PropertyContext";
 import { Ionicons } from "@expo/vector-icons"; // Import icons for bottom tabs
+import { LogBox } from "react-native";
 
 import HomeScreen from "./screens/HomeScreen";
-import PropertyDetailScreen from "./screens/PropertyDetailScreen";
 import LoginScreen from "./screens/LoginScreen";
 import AddPropertyScreen from "./screens/AddPropertyScreen";
 import CameraScreen from "./screens/CameraScreen";
@@ -15,6 +15,8 @@ import MapScreen from "./screens/MapScreen";
 import LeadListScreen from "./screens/LeadListScreen";
 import LeadDetailScreen from "./screens/LeadDetailScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+
+LogBox.ignoreAllLogs();
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -62,7 +64,6 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={BottomTabs} />
           <Stack.Screen name="DriveStack" component={DriveStack} />
-          <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
           <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
           <Stack.Screen name="CameraScreen" component={CameraScreen} />
           <Stack.Screen name="GalleryScreen" component={GalleryScreen} />

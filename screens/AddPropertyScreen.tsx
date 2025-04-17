@@ -6,9 +6,12 @@ import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
+// const API_URL = "http://localhost:5001/api/leads";
+// const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 
+const baseUrl = "http://34.57.202.249:5001";
+const API_URL = `${baseUrl}/api/leads`;
+const IMAGE_UPLOAD_URL = `${baseUrl}/api/upload`;
 
 const AddPropertyScreen = () => {
   const navigation = useNavigation();
@@ -54,26 +57,50 @@ const AddPropertyScreen = () => {
     if (useCamera) {
       result = await ImagePicker.launchCameraAsync({
         quality: 1,
+        base64: true,
         exif: true,  // get image metadata
       });
     } else {
       result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
         quality: 1,
+        base64: true,
         exif: true,
       });
     }
 
     if (!result.canceled) {
-      const newImages = result.assets ? result.assets.map(img => img.uri) : [result.uri];
-      setImages([...images, ...newImages]);
+      const selectedAssets = result.assets ?? [result];
 
-      // Use first image's metadata for autofill if no previous autofill
+      const base64Images = selectedAssets.map(asset => {
+        return `data:image/jpeg;base64,${asset.base64}`;
+      });
+
+      setImages(prev => [...prev, ...base64Images]);
+
+      // const newImages = result.assets ? result.assets.map(img => img.uri) : [result.uri];
+      // setImages([...images, ...newImages]);
+
+      // // Use first image's metadata for autofill if no previous autofill
       if (!isFromMap && !firstImageUri && result.assets && result.assets.length > 0) {
         setFirstImageUri(result.assets[0].uri);
+      
         const { GPSLatitude, GPSLongitude } = result.assets[0].exif || {};
+        console.log("gps info", result.assets[0].exif);
+        console.log("GPS lat", GPSLatitude);
+      
         if (GPSLatitude && GPSLongitude) {
-          getAddressFromCoords(GPSLatitude, GPSLongitude);
+          // Reverse longitude if it's in the Eastern Hemisphere
+          let latitude = GPSLatitude;
+          let longitude = GPSLongitude;
+      
+          if (longitude > 0) {
+            console.log("Reversing longitude for Western Hemisphere");
+            longitude = longitude * -1;
+          }
+      
+          console.log("Final GPS coords:", latitude, longitude);
+          getAddressFromCoords(latitude, longitude);
         }
       }
     }
@@ -81,17 +108,41 @@ const AddPropertyScreen = () => {
 
   const getAddressFromCoords = async (latitude, longitude) => {
     try {
-      let location = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (location.length > 0) {
-        setAddress(location[0].street || "");
-        setCity(location[0].city || "");
-        setState(location[0].region || "");
-        setZip(location[0].postalCode || "");
+      const apiKey = "";
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+  
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log("data", data);
+  
+      if (data.status === "OK") {
+        const result = data.results.find(r => r.types.includes("street_address") || r.types.includes("premise") || r.types.includes("route") || r.types.includes("subpremise"));
+        if (!result) {
+          console.warn("No valid address result found");
+          return;
+        }
+        const components = result.address_components;
+        // console.log("components", components);
+  
+        const getComponent = (type) => {
+          const comp = components.find(c => c.types.includes(type));
+          return comp ? comp.long_name : "";
+        };
+
+        // console.log("get component", getComponent);
+  
+        setAddress(getComponent("street_number") + " " + getComponent("route"));
+        setCity(getComponent("locality") || getComponent("sublocality"));
+        setState(getComponent("administrative_area_level_1"));
+        setZip(getComponent("postal_code"));
+      } else {
+        console.warn("Google Geocoding failed:", data.status);
       }
     } catch (error) {
-      console.error("Error fetching address:", error);
+      console.error("Error with Google Geocoding:", error);
     }
   };
+  
 
   const removeImage = (index) => {
     const updatedImages = images.filter((_, i) => i !== index);
@@ -132,7 +183,7 @@ const AddPropertyScreen = () => {
       });
   
       let data = await response.json();
-      console.log("server response:", data);
+      // console.log("server response:", data);
 
       if (!response.ok) throw new Error("Upload failed: " + JSON.stringify(data));
   
@@ -151,6 +202,45 @@ const AddPropertyScreen = () => {
 
     const parsedUser = JSON.parse(storedUser);
     const userId = parsedUser.id;
+
+    // trim inputs for cleaner validation
+    const trimmedName = name.trim();
+    const trimmedAddress = address.trim();
+    const trimmedCity = city.trim();
+    const trimmedState = state.trim();
+    const trimmedZip = zip.trim();
+    const trimmedOwner = owner.trim();
+
+    // Validate each field
+  if (!trimmedName) {
+    Alert.alert("Missing Property Name", "Please enter a property name (e.g., '3 bed 2 bath').");
+    return;
+  }
+
+  if (!trimmedAddress) {
+    Alert.alert("Missing Address", "Please enter the property address.");
+    return;
+  }
+
+  if (!trimmedCity) {
+    Alert.alert("Missing City", "Please enter the city.");
+    return;
+  }
+
+  if (!trimmedState) {
+    Alert.alert("Missing State", "Please enter the state.");
+    return;
+  }
+
+  if (!trimmedZip || !/^\d{5}$/.test(trimmedZip)) {
+    Alert.alert("Invalid Zip Code", "Please enter a valid 5-digit zip code.");
+    return;
+  }
+
+  if (!trimmedOwner) {
+    Alert.alert("Missing Owner", "Please enter the owner's name.");
+    return;
+  }
 
     if (!address || !city || !state || !zip || !owner) {
       Alert.alert("Error", "Please fill in all fields.");
@@ -177,7 +267,7 @@ const AddPropertyScreen = () => {
       });
   
       let data = await response.json();
-      console.log("🛬 Server response:", data);
+      // console.log("🛬 Server response:", data);
   
       if (!response.ok) throw new Error("Failed to add property");
   

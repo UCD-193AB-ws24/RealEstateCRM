@@ -11,8 +11,8 @@ import * as ImagePicker from "expo-image-picker";
 import LeadListScreen from "./LeadListScreen";
 
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
+const API_URL = "http://34.57.202.249:5001/api/leads";
+const IMAGE_UPLOAD_URL = "http://34.57.202.249:5001/api/upload";
 
 export default function LeadDetailScreen({ route, navigation }) {
   const { lead } = route.params;
@@ -40,6 +40,7 @@ export default function LeadDetailScreen({ route, navigation }) {
   
   useEffect(() => {
     return navigation.addListener("beforeRemove", async () => {
+      if (!editableLead.id) return; // skip if lead was deleted
       if (hasChangesRef.current) await saveLead();
     });
   }, []);
@@ -53,7 +54,7 @@ export default function LeadDetailScreen({ route, navigation }) {
   try {
     const updatedLead = { ...editableLead, status, notes: editableLead.notes || "" }; // Ensure status is updated
 
-    console.log("Updating lead with data:", updatedLead); // Debugging log
+    // console.log("Updating lead with data:", updatedLead); // Debugging log
 
     const response = await fetch(`${API_URL}/${lead.id}`, {
       method: "PUT",
@@ -112,7 +113,7 @@ export default function LeadDetailScreen({ route, navigation }) {
       if (!response.ok) throw new Error("Failed to delete lead");
 
       Alert.alert("Success", "Lead deleted successfully!");
-      navigation.goBack(); // Navigate back to the lead list after deletion
+      navigation.navigate("Leads");
     } catch (error) {
       console.error("Error deleting lead:", error);
       Alert.alert("Error", "Failed to delete lead");
@@ -144,42 +145,51 @@ export default function LeadDetailScreen({ route, navigation }) {
       allowsEditing: true,
       quality: 1,
       selectionLimit: 5, // Allow selecting multiple images
+      base64: true,
     });
   
     if (!result.canceled) {
-      let formData = new FormData();
-      result.assets.forEach((asset, index) => {
-        formData.append("file", {
-          uri: asset.uri,
-          name: `image-${index}.jpg`,
-          type: "image/jpeg",
-        });
+      const base64Images = result.assets.map((asset) => {
+        const mimeType = asset.type || "image/jpeg";
+        return `data:${mimeType};base64,${asset.base64}`;
       });
+
+      const updatedImages = [...(editableLead.images || []), ...base64Images];
+      const updatedLead = { ...editableLead, images: updatedImages };
+
+      setEditableLead(updatedLead);
+      setHasChanges(true);
+
+      // let formData = new FormData();
+      // result.assets.forEach((asset, index) => {
+      //   formData.append("file", {
+      //     uri: asset.uri,
+      //     name: `image-${index}.jpg`,
+      //     type: "image/jpeg",
+      //   });
+      // });
   
       try {
-        let response = await fetch(IMAGE_UPLOAD_URL, {
-          method: "POST",
-          body: formData,
-          headers: { "Accept": "application/json" }, // ✅ Ensure JSON response
-        });
-  
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Upload failed: ${errorText}`);
-        }
-  
-        let data = await response.json(); // ✅ Parse JSON
-        const updatedImages = [...editableLead.images, ...data.imageUrls];
-  
-        setEditableLead({ ...editableLead, images: updatedImages });
-        setHasChanges(true);
-  
-        // ✅ Update lead in DB
-        await fetch(`${API_URL}/${lead.id}`, {
+        let response = await fetch(`${API_URL}/${lead.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...editableLead, images: updatedImages }),
+          body: JSON.stringify(updatedLead),
         });
+  
+        if (!response.ok) throw new Error("Failed to update lead with images");
+  
+        // let data = await response.json(); // ✅ Parse JSON
+        // const updatedImages = [...editableLead.images, ...data.imageUrls];
+  
+        // setEditableLead({ ...editableLead, images: updatedImages });
+        // setHasChanges(true);
+  
+        // // ✅ Update lead in DB
+        // await fetch(`${API_URL}/${lead.id}`, {
+        //   method: "PUT",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify({ ...editableLead, images: updatedImages }),
+        // });
   
       } catch (error) {
         console.error("Error uploading image:", error);
