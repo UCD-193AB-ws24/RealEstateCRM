@@ -10,7 +10,14 @@ export default function LoginScreen({ navigation }) {
   const [userInfo, setUserInfo] = useState(null);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: "677796464036-5fg8dpn3od8rtrgr36cmo0ne04us4g2l.apps.googleusercontent.com",
     clientId: "677796464036-lcia79vgc4akv50inc89tr86mg06e7un.apps.googleusercontent.com",
+    scopes: [
+      "openid",
+      "profile",
+      "email",
+      "https://www.googleapis.com/auth/spreadsheets",
+    ],
   });
   useEffect(() => {
     console.log("Google Auth Response:", response);
@@ -43,9 +50,10 @@ export default function LoginScreen({ navigation }) {
   
       setUserInfo(user);
       await SecureStore.setItemAsync("user", JSON.stringify(user));
+      await SecureStore.setItemAsync("accessToken", token);
   
       // Send user data to backend
-      const response = await fetch("http://localhost:5001/api/users", {
+      const response = await fetch("http://34.57.202.249:5001/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(user),

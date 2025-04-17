@@ -47,7 +47,9 @@
     "react-native-snap-carousel": "^3.9.1",
     "react-native-vector-icons": "^10.2.0",
     "sequelize": "^6.37.5",
-    "undefined": "expo-auth-session/providers/google"
+    "undefined": "expo-auth-session/providers/google",
+    "@react-native-async-storage/async-storage": "1.17.11",
+    "@react-native-community/netinfo": "9.3.7"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

@@ -1,5 +1,11 @@
 {
   "expo": {
+    "scheme": "realestatecrm",
+    "extra": {
+      "eas": {
+        "projectId": "56e605e5-3b49-4776-8cf6-e6add4ad1c35"
+      }
+    },
     "name": "Real Estate CRM",
     "slug": "real-estate-crm",
     "version": "1.0.0",

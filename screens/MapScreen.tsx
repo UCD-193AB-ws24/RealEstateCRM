@@ -26,7 +26,7 @@ export default function DriveScreen() {
         const isSimulator = location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
   
         const newRegion = isSimulator
-          ? { latitude: 38.5449, longitude: -121.7405, latitudeDelta: zoomLevel, longitudeDelta: zoomLevel }
+          ? { latitude: 37.79011359938542, longitude: -122.39001631701034, latitudeDelta: zoomLevel, longitudeDelta: zoomLevel }
           : { latitude: location.coords.latitude, longitude: location.coords.longitude, latitudeDelta: zoomLevel, longitudeDelta: zoomLevel };
   
         setRegion(newRegion);
@@ -64,6 +64,7 @@ export default function DriveScreen() {
   return (
     <View style={styles.container}>
       <MapView
+        provider="google"
         style={styles.map}
         region={region} // ✅ Ensures map updates properly
         showsUserLocation={true}
