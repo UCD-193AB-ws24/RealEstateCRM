@@ -1,9 +1,9 @@
 import React from "react";
+import { Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PropertyProvider } from "./contexts/PropertyContext";
-import { Ionicons } from "@expo/vector-icons"; // Import icons for bottom tabs
 
 import HomeScreen from "./screens/HomeScreen";
 import PropertyDetailScreen from "./screens/PropertyDetailScreen";
@@ -32,14 +32,14 @@ function BottomTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size }) => {
-          let iconName;
-          if (route.name === "Home") iconName = "home-sharp";
-          else if (route.name === "Drive") iconName = "car-sharp";
-          else if (route.name === "Leads") iconName = "bookmark-sharp";
-          else if (route.name === "Profile") iconName = "person-sharp";
+        tabBarIcon: ({ color }) => {
+          let icon = "❓";
+          if (route.name === "Home") icon = "🏠";
+          else if (route.name === "Drive") icon = "🚗";
+          else if (route.name === "Leads") icon = "🔖";
+          else if (route.name === "Profile") icon = "👤";
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Text style={{ color, fontSize: 18 }}>{icon}</Text>;
         },
         tabBarActiveTintColor: "#A078C4",
         tabBarInactiveTintColor: "gray",
@@ -53,7 +53,6 @@ function BottomTabs() {
   );
 }
 
-// 📌 **Main App with Stack Navigation**
 export default function App() {
   return (
     <PropertyProvider>

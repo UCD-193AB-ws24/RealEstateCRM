@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 
@@ -9,7 +8,6 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
 
-  // State to hold the stats fetched from the backend
   const [stats, setStats] = useState({
     totalLeads: 0,
     dealsClosed: 0,
@@ -27,10 +25,9 @@ const HomeScreen = () => {
     loadUser();
   }, []);
 
-  // Function to fetch stats from the backend
   const fetchStats = async () => {
     try {
-      const response = await fetch("http://localhost:5001/api/stats"); // Replace with your API URL
+      const response = await fetch("http://34.57.202.249:5001/api/stats");
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -39,7 +36,6 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch stats whenever the screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchStats();
@@ -49,8 +45,8 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView style={styles.container}>
-      {user && <Text style={styles.welcomeText}>Welcome, {user.given_name}!</Text>}
-        {/* Quick Stats Section */}
+        {user && <Text style={styles.welcomeText}>Welcome, {user.given_name}!</Text>}
+
         <View style={styles.statsContainer}>
           <Text style={styles.statsTitle}>Quick Stats</Text>
           <View style={styles.statsRow}>
@@ -85,11 +81,9 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* Buttons Section */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("AddProperty")}>
-            <Ionicons name="add-circle-outline" size={24} color="black" />
-            <Text style={styles.buttonText}>Add an Address</Text>
+            <Text style={styles.buttonText}>＋ Add an Address</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -122,7 +116,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   statBox: {
-    width: "45%", // Makes each stat box take up 45% of the screen width
+    width: "45%",
     backgroundColor: "#FFFFFF",
     padding: 20,
     borderRadius: 10,
@@ -159,7 +153,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonText: {
-    marginLeft: 10,
     fontSize: 16,
     fontWeight: "bold",
     color: "white",

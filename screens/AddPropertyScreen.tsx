@@ -6,8 +6,8 @@ import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const API_URL = "http://localhost:5001/api/leads";
-const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
+const API_URL = "http://34.57.202.249:5001/api/leads";
+const IMAGE_UPLOAD_URL = "http://34.57.202.249:5001/api/upload";
 
 
 const AddPropertyScreen = () => {

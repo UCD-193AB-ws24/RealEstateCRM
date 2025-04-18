@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { StyleSheet, View, TouchableOpacity } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 export default function DriveScreen() {
@@ -48,7 +47,6 @@ export default function DriveScreen() {
   
     // ✅ Navigate to "AddPropertyScreen" with location data
     navigation.navigate("DriveStack", { screen: "AddPropertyScreen", params: newPin });
-
   };
 
   // 🔍 **Zoom In**
@@ -77,16 +75,16 @@ export default function DriveScreen() {
       {/* 🔍 Zoom In & Out Buttons */}
       <View style={styles.zoomControls}>
         <TouchableOpacity style={styles.zoomButton} onPress={zoomIn}>
-          <Ionicons name="add" size={24} color="white" />
+          <View style={styles.icon}>+</View> {/* Placeholder for zoom in */}
         </TouchableOpacity>
         <TouchableOpacity style={styles.zoomButton} onPress={zoomOut}>
-          <Ionicons name="remove" size={24} color="white" />
+          <View style={styles.icon}>-</View> {/* Placeholder for zoom out */}
         </TouchableOpacity>
       </View>
 
       {/* 📍 Drop Pin Button */}
       <TouchableOpacity style={styles.pinButton} onPress={dropPin}>
-        <Ionicons name="location-sharp" size={30} color="white" />
+        <View style={styles.icon}>📍</View> {/* Placeholder for drop pin */}
       </TouchableOpacity>
     </View>
   );
@@ -119,5 +117,10 @@ const styles = StyleSheet.create({
     marginBottom: 10, // Space between buttons
     alignItems: "center",
     justifyContent: "center",
+  },
+  icon: {
+    color: "white",
+    fontSize: 24, // Similar to the icon size
+    textAlign: "center",
   },
 });

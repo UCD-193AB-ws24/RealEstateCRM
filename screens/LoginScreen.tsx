@@ -45,7 +45,7 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync("user", JSON.stringify(user));
   
       // Send user data to backend
-      const response = await fetch("http://localhost:5001/api/users", {
+      const response = await fetch("http://34.57.202.249:5001/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(user),
