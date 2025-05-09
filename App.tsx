@@ -3,9 +3,14 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PropertyProvider } from "./contexts/PropertyContext";
-import { Ionicons } from "@expo/vector-icons"; // Import icons for bottom tabs
 import { LogBox } from "react-native";
 
+import {
+  Home,
+  Car,
+  Bookmark,
+  User,
+} from "react-native-feather"; // ✅ Feather icons
 import HomeScreen from "./screens/HomeScreen";
 import LoginScreen from "./screens/LoginScreen";
 import AddPropertyScreen from "./screens/AddPropertyScreen";
@@ -35,27 +40,42 @@ function BottomTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
-          let iconName;
-          if (route.name === "Home") iconName = "home-sharp";
-          else if (route.name === "Drive") iconName = "car-sharp";
-          else if (route.name === "Leads") iconName = "bookmark-sharp";
-          else if (route.name === "Profile") iconName = "person-sharp";
+          const iconProps = { stroke: color, width: size, height: size };
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          if (route.name === "Home") return <Home {...iconProps} />;
+          if (route.name === "Drive") return <Car {...iconProps} />;
+          if (route.name === "Leads") return <Bookmark {...iconProps} />;
+          if (route.name === "Profile") return <User {...iconProps} />;
         },
         tabBarActiveTintColor: "#A078C4",
         tabBarInactiveTintColor: "gray",
       })}
     >
-      <Tab.Screen name="Drive" component={DriveStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Leads" component={LeadListScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Drive"
+        component={DriveStack}
+        options={{ headerShown: false }}
+      />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ headerShown: false }}
+      />
+      <Tab.Screen
+        name="Leads"
+        component={LeadListScreen}
+        options={{ headerShown: false }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ headerShown: false }}
+      />
     </Tab.Navigator>
   );
 }
 
-// 📌 **Main App with Stack Navigation**
+// 📌 Main App with Stack Navigation
 export default function App() {
   return (
     <PropertyProvider>

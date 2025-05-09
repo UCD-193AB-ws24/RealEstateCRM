@@ -14,7 +14,7 @@ import axios from "axios";
 import * as Linking from "expo-linking";
 import { Alert, Linking as RNLinking } from "react-native";
 
-const baseUrl = "http://34.57.202.249:5001";
+const baseUrl = "http://34.31.159.135:5001";
 const API_URL = `${baseUrl}/api/leads`;
 const IMAGE_UPLOAD_URL = `${baseUrl}/api/uploads`;
 

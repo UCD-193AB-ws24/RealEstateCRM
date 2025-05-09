@@ -1,18 +1,24 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { PlusCircle } from "react-native-feather"; // ✅ Feather icon replacement
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 
-const baseUrl = "http://34.57.202.249:5001/api/stats";
+const baseUrl = "http://34.31.159.135:5001/api/stats";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
 
-  // State to hold the stats fetched from the backend
   const [stats, setStats] = useState({
     totalLeads: 0,
     dealsClosed: 0,
@@ -30,17 +36,10 @@ const HomeScreen = () => {
     loadUser();
   }, []);
 
-  // Function to fetch stats from the backend
   const fetchStats = async (userId) => {
     try {
-      const response = await axios.get(`${baseUrl}/${userId}`); // Replace with your API URL
-      // console.log("response ", response);
+      const response = await axios.get(`${baseUrl}/${userId}`);
       const data = await response.data;
-
-      // const parsedUser = JSON.parse(storedUser);
-      // const response = await axios.get(`${API_URL}/${parsedUser.id}`);
-      // const data = response.data;
-
       console.log("data ", data);
       setStats(data);
     } catch (error) {
@@ -49,7 +48,6 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch stats whenever the screen is focused
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -60,8 +58,7 @@ const HomeScreen = () => {
           setUser(parsedUser);
           await fetchStats(parsedUser.id);
         }
-      }
-      // fetchStats();
+      };
       fetchData();
     }, [])
   );
@@ -69,10 +66,13 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView style={styles.container}>
-      {user && <Text style={styles.welcomeText}>Welcome, {user.given_name}!</Text>}
-        {/* Quick Stats Section */}
+        {user && (
+          <Text style={styles.welcomeText}>Welcome, {user.given_name}!</Text>
+        )}
+
         <View style={styles.statsContainer}>
           <Text style={styles.statsTitle}>Quick Stats</Text>
+
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.totalLeads}</Text>
@@ -83,6 +83,7 @@ const HomeScreen = () => {
               <Text style={styles.statLabel}>Deals Closed</Text>
             </View>
           </View>
+
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.propertiesContacted}</Text>
@@ -93,6 +94,7 @@ const HomeScreen = () => {
               <Text style={styles.statLabel}>Offers Made</Text>
             </View>
           </View>
+
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.activeListings}</Text>
@@ -105,10 +107,12 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* Buttons Section */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("AddProperty")}>
-            <Ionicons name="add-circle-outline" size={24} color="black" />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate("AddProperty")}
+          >
+            <PlusCircle stroke="white" width={24} height={24} /> {/* ✅ Feather icon */}
             <Text style={styles.buttonText}>Add an Address</Text>
           </TouchableOpacity>
         </View>
@@ -142,7 +146,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   statBox: {
-    width: "45%", // Makes each stat box take up 45% of the screen width
+    width: "45%",
     backgroundColor: "#FFFFFF",
     padding: 20,
     borderRadius: 10,
