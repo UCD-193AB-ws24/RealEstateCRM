@@ -18,19 +18,19 @@ export default function DriveScreen() {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          console.warn("Location permission denied, using default Davis location.");
-          return;
+          console.warn("Location permission denied, using default coordinates.");
         }
-  
-        let location = await Location.getCurrentPositionAsync({});
-        const isSimulator = location.coords.latitude === 37.785834 && location.coords.longitude === -122.406417;
-  
-        const newRegion = isSimulator
-          ? { latitude: 37.79011359938542, longitude: -122.39001631701034, latitudeDelta: zoomLevel, longitudeDelta: zoomLevel }
-          : { latitude: location.coords.latitude, longitude: location.coords.longitude, latitudeDelta: zoomLevel, longitudeDelta: zoomLevel };
-  
-        setRegion(newRegion);
-        setLocation(newRegion); // ✅ Ensure location is set
+    
+        // Center map at specified coordinates
+        const defaultRegion = {
+          latitude: 38.54118809672882,
+          longitude: -121.75189912934701,
+          latitudeDelta: zoomLevel,
+          longitudeDelta: zoomLevel,
+        };
+    
+        setRegion(defaultRegion);
+        setLocation(defaultRegion);
       } catch (error) {
         console.error("Error getting user location:", error);
       }
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 20,
     right: 20,
-    backgroundColor: "red",
+    backgroundColor: "#7C3AED", // Purple
     padding: 15,
     borderRadius: 50,
     alignItems: "center",

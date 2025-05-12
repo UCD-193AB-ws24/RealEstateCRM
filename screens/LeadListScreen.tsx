@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image, ActionSheetIOS, ScrollView } from "react-native";
 import { Card, Button, Menu, Divider } from "react-native-paper";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
@@ -13,12 +13,75 @@ import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 import * as Linking from "expo-linking";
 import { Alert, Linking as RNLinking } from "react-native";
+import Carousel from "react-native-snap-carousel";
+import { Dimensions } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
 
-const baseUrl = "http://34.57.202.249:5001";
+const screenWidth = Dimensions.get("window").width;
+
+const ITEMS_PER_PAGE = 5;
+
+const baseUrl = "http://34.31.159.135:5002";
 const API_URL = `${baseUrl}/api/leads`;
 const IMAGE_UPLOAD_URL = `${baseUrl}/api/uploads`;
 
 const GEOCODING_API_KEY = "";
+
+const ImageCarousel = ({ images }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const carouselRef = useRef(null);
+
+  return (
+    <View style={styles.carouselContainer}>
+      <Carousel
+        ref={carouselRef}
+        data={images}
+        renderItem={({ item }) => (
+          <Image source={{ uri: item }} style={styles.image} />
+        )}
+        sliderWidth={screenWidth - 40}
+        itemWidth={screenWidth - 40}
+        onSnapToItem={(index) => setActiveIndex(index)}
+      />
+
+      {/* Left Arrow */}
+      {activeIndex > 0 && (
+        <TouchableOpacity
+          style={styles.arrowLeft}
+          onPress={() => carouselRef.current?.snapToPrev()}
+        >
+          <Ionicons name="chevron-back" size={30} color="white" />
+        </TouchableOpacity>
+      )}
+
+      {/* Right Arrow */}
+      {activeIndex < images.length - 1 && (
+        <TouchableOpacity
+          style={styles.arrowRight}
+          onPress={() => carouselRef.current?.snapToNext()}
+        >
+          <Ionicons name="chevron-forward" size={30} color="white" />
+        </TouchableOpacity>
+      )}
+
+      {/* Pagination & Counter Overlay */}
+      <View style={styles.overlay}>
+      <View style={styles.dotWrapper}>
+        {images.map((_, idx) => (
+          <View
+            key={idx}
+            style={[styles.dot, activeIndex === idx && styles.activeDot]}
+          />
+        ))}
+      </View>
+      <Text style={styles.counter}>{`${activeIndex + 1} / ${images.length}`}</Text>
+    </View>
+    </View>
+  );
+};
+
 
 const getCoordsFromAddress = async (address) => {
   try {
@@ -41,6 +104,16 @@ const getCoordsFromAddress = async (address) => {
   }
 }
 
+const deduplicateLeads = (existing, incoming) => {
+  const merged = [...existing, ...incoming];
+  const uniqueMap = new Map();
+  for (let lead of merged) {
+    uniqueMap.set(lead.id, lead);
+  }
+  return Array.from(uniqueMap.values());
+};
+
+
 export default function LeadListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMapView, setIsMapView] = useState(false);
@@ -60,6 +133,28 @@ export default function LeadListScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastSheetTitle, setLastSheetTitle] = useState("");
+  const [renderedCount, setRenderedCount] = useState(ITEMS_PER_PAGE);
+  const [visibleLeads, setVisibleLeads] = useState([]);
+  const [allFilteredLeads, setAllFilteredLeads] = useState([]);
+
+
+    const isFocused = useIsFocused();
+    const route = useRoute();
+
+  useEffect(() => {
+    if (isFocused) {
+      if (route.params?.refresh) {
+        console.log("🔄 Refreshing lead list from navigation param...");
+        fetchLeads();
+        navigation.setParams({ refresh: false }); // Reset after refreshing
+      }
+    }
+  }, [isFocused, route.params?.refresh]);
+
 
   const filteredLeads = leads.filter((lead) => {
     return (
@@ -70,7 +165,28 @@ export default function LeadListScreen({ navigation }) {
        (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())))
     );
   });
-  
+
+  useEffect(() => {
+    const updated = leads.filter((lead) => {
+      return (
+        (!selectedStatus || lead.status === selectedStatus) &&
+        (!selectedCity || lead.city === selectedCity) &&
+        (!onlyWithImages || (lead.images && lead.images.length > 0)) &&
+        (lead.address.toLowerCase().includes(searchQuery.toLowerCase()) || 
+         (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())))
+      );
+    });
+    setAllFilteredLeads(updated);
+    setVisibleLeads(updated.slice(0, ITEMS_PER_PAGE));
+    setRenderedCount(ITEMS_PER_PAGE);
+  }, [leads, searchQuery, selectedStatus, selectedCity, onlyWithImages]);
+
+  const handleLoadMoreLocal = () => {
+    const nextCount = renderedCount + ITEMS_PER_PAGE;
+    const moreToShow = allFilteredLeads.slice(0, nextCount);
+    setVisibleLeads(moreToShow);
+    setRenderedCount(nextCount);
+  };
 
 
   useEffect(() => {
@@ -89,14 +205,17 @@ export default function LeadListScreen({ navigation }) {
   }, [isMapView]);
 
   
-  const fetchLeads = async () => {
+  const fetchLeads = async (pageParam = 1) => {
+    setLoading(true);
+  
     try {
       const storedUser = await SecureStore.getItemAsync("user");
       if (!storedUser) return;
   
       const parsedUser = JSON.parse(storedUser);
-      const response = await axios.get(`${API_URL}/${parsedUser.id}`);
+      const response = await axios.get(`${API_URL}/${parsedUser.id}?page=${pageParam}&limit=10`);
       const data = response.data;
+      console.log("✅ API response received:", data.length);
   
       const leadsWithCoordinates = await Promise.all(
         data.map(async (lead) => {
@@ -110,9 +229,26 @@ export default function LeadListScreen({ navigation }) {
         })
       );
   
-      setLeads(leadsWithCoordinates);
+      if (pageParam === 1) {
+        setLeads(leadsWithCoordinates);
+      } else {
+        setLeads((prev) => deduplicateLeads(prev, leadsWithCoordinates));
+      }
+  
+      setPage(pageParam);
+      setHasMore(data.length === 10);
     } catch (error) {
-      console.error("Error fetching leads:", error);
+      console.error("❌ Error fetching leads:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  
+
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      fetchLeads(page + 1);
     }
   };
   
@@ -147,22 +283,6 @@ const openActionsMenu = () => {
   //   );
   // });
 
-  const exportToCSV = async () => {
-    const csvContent = "Name,Address,City,State,Zip,Owner,Status\n" +
-      leads.map(lead =>
-        `"${lead.name || ""}","${lead.address}","${lead.city}","${lead.state}","${lead.zip}","${lead.owner || ""}","${lead.status}"`
-      ).join("\n");
-
-    const fileUri = FileSystem.documentDirectory + "leads.csv";
-    await FileSystem.writeAsStringAsync(fileUri, csvContent);
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri);
-    } else {
-      alert("CSV file saved at: " + fileUri);
-    }
-  };
-
   const getAccessToken = async () => {
     try {
       const token = await SecureStore.getItemAsync("accessToken");
@@ -173,6 +293,30 @@ const openActionsMenu = () => {
     }
   }
 
+  const promptSheetName = () => {
+    return new Promise((resolve) => {
+      let input = lastSheetTitle || "Leads Export";
+
+      Alert.prompt(
+        "Sheet Name",
+        "Enter the name for the Google Sheet",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => resolve(null),
+          },
+          {
+            text: "OK",
+            onPress: (text) => resolve(text || input),
+          },
+        ],
+        "plain-text",
+        input
+      );
+    });
+  };
+
   const createSheetAndExport = async () => {
     const accessToken = await getAccessToken();
     if (!accessToken) {
@@ -180,38 +324,55 @@ const openActionsMenu = () => {
       return;
     }
 
+    const sheetTitle = await promptSheetName();
+    if (!sheetTitle) return;
+
+    setLastSheetTitle(sheetTitle);
+
     try {
-
-      const sheetTitle = "Leads Export";
-
-      const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          properties: { title: sheetTitle },
-        }),
-      });
-
-      const createData = await createRes.json();
-
-      if (!createRes.ok) {
-        console.error("Sheet creation failed:", createData);
-        alert("Failed to create sheet: " + (createData.error?.message || "Unknown error"));
-        return;
-      }
-
-      const spreadsheetId = createData.spreadsheetId;
+      const storedSheets = JSON.parse(await SecureStore.getItemAsync("sheetMap") || "{}");
+      let spreadsheetId = storedSheets[sheetTitle];
+      console.log(spreadsheetId);
 
       if (!spreadsheetId) {
-        console.warn("No spreadsheetId returned:", createData);
-        alert("Sheet created, but couldn't retrieve its ID.");
-        return;
+        console.log("Using access token:", accessToken);
+        const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+          method: 'POST', // ✅ also fix: method should be POST, not PUT
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            properties: { title: sheetTitle },
+          }),
+        });
+        
+        if (!createRes.ok) {
+          const errorText = await createRes.text();
+          console.error("Sheet creation failed:", errorText);
+          alert("Failed to create sheet.");
+          return;
+        }
+        
+        const createData = await createRes.json();
+        spreadsheetId = createData.spreadsheetId;
+        
+
+        if (!createRes.ok || !spreadsheetId) {
+          console.error("Sheet creation failed:", createData);
+          alert("Failed to create sheet.");
+          return;
+        }
+  
+        storedSheets[sheetTitle] = spreadsheetId;
+        await SecureStore.setItemAsync("sheetMap", JSON.stringify(storedSheets));
       }
 
-      // Step 2: Write the leads data
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:Z1000:clear`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+  
       const rows = [
         ['Name', 'Address', 'City', 'State', 'Zip', 'Owner', 'Status'],
         ...leads.map(lead => [
@@ -224,39 +385,24 @@ const openActionsMenu = () => {
           lead.status,
         ]),
       ];
-
+  
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:append?valueInputOption=RAW`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          values: rows,
-        }),
+        body: JSON.stringify({ values: rows }),
       });
-
-      // alert(`Sheet created! View it here: https://docs.google.com/spreadsheets/d/${spreadsheetId}`);
+  
       const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
-      Alert.alert(
-        "Export Successful",
-        "Your leads have been exported to Google Sheets.",
-        [
-          {
-            text: "Open Sheet",
-            onPress: () => RNLinking.openURL(url),
-            style: "default",
-          },
-          {
-            text: "OK",
-            style: "cancel",
-          },
-        ],
-        { cancelable: true }
-      );
+      Alert.alert("Export Successful", "Leads exported successfully.", [
+        { text: "Open Sheet", onPress: () => RNLinking.openURL(url) },
+        { text: "OK", style: "cancel" }
+      ]);
     } catch (err) {
-      console.error("Unexpected error during export:", err);
-      alert("Something went wrong creating the sheet.");
+      console.error("Error exporting sheet:", err);
+      alert("Something went wrong.");
     }
   }
 
@@ -347,7 +493,13 @@ const openActionsMenu = () => {
             onChangeText={setSearchQuery}
           />
           <Text style={styles.toggleText}>{isMapView ? "Map" : "List"}</Text>
-          <Switch value={isMapView} onValueChange={() => setIsMapView(!isMapView)} />
+          <Switch
+            value={isMapView}
+            onValueChange={() => setIsMapView(!isMapView)}
+            trackColor={{ false: "#D1D5DB", true: "#C4B5FD" }} // light violet track
+            thumbColor={isMapView ? "#7C3AED" : "#f4f3f4"}     // deep violet thumb
+          />
+
         </View>
 
         <View style={styles.buttonRow}>
@@ -372,78 +524,92 @@ const openActionsMenu = () => {
         </View>
 
         {filtersVisible && (
-          <View style={styles.filtersContainer}>
-            <DropDownPicker
-              open={statusOpen}
-              value={selectedStatus}
-              items={[
-                { label: "All", value: null },
-                { label: "Lead", value: "Lead" },
-                { label: "Contact", value: "Contact" },
-                { label: "Offer", value: "Offer" },
-                { label: "Sale", value: "Sale" },
-              ]}
-              setOpen={setStatusOpen}
-              setValue={setSelectedStatus}
-              placeholder="Filter by Status"
-            />
+  <View style={{ zIndex: 4000 }}>
+    <View style={styles.filtersContainer}>
+    <View style={styles.toggleRow}>
+        <View style={styles.toggleContainer}>
+          <Text>Only With Images</Text>
+          <Switch value={onlyWithImages} onValueChange={setOnlyWithImages} />
+        </View>
+        <Button mode="contained" onPress={resetFilters} style={styles.resetButton}>Reset</Button>
+      </View>
+      <View style={styles.filterRow}>
+        <View style={[styles.halfWidth, { zIndex: statusOpen ? 3000 : 1000 }]}>
+          <DropDownPicker
+            open={statusOpen}
+            value={selectedStatus}
+            items={[
+              { label: "Lead", value: "Lead" },
+              { label: "Contact", value: "Contact" },
+              { label: "Offer", value: "Offer" },
+              { label: "Sale", value: "Sale" },
+            ]}
+            setOpen={setStatusOpen}
+            setValue={setSelectedStatus}
+            placeholder="Filter by Status"
+            style={styles.dropdown}
+            dropDownContainerStyle={styles.dropdownList}
+          />
+        </View>
 
-            <DropDownPicker
-              open={cityOpen}
-              value={selectedCity}
-              items={
-                Array.from(
-                  new Map(
-                    leads
-                      .filter(lead => lead.city) // remove null/undefined cities
-                      .map(lead => {
-                        const normalized = lead.city.trim().toLowerCase();
-                        return [normalized, { label: lead.city.trim(), value: lead.city.trim() }];
-                      })
-                  ).values()
-                )
-              }
-              setOpen={setCityOpen}
-              setValue={setSelectedCity}
-              placeholder="Filter by City"
-            />
+        <View style={styles.halfWidth}>
+        <DropDownPicker
+          open={cityOpen}
+          value={selectedCity}
+          items={Array.from(
+            new Map(
+              leads
+                .filter(lead => lead.city)
+                .map(lead => [lead.city.trim().toLowerCase(), {
+                  label: lead.city.trim(),
+                  value: lead.city.trim()
+                }])
+            ).values()
+          )}
+          setOpen={setCityOpen}
+          setValue={setSelectedCity}
+          placeholder="Filter by City"
+          style={styles.dropdown}
+          dropDownContainerStyle={styles.dropdownList}
+        />
 
-            <View style={styles.toggleContainer}>
-              <Text>Only With Images</Text>
-              <Switch value={onlyWithImages} onValueChange={setOnlyWithImages} />
-            </View>
+        </View>
+      </View>
 
-            <View style={styles.buttonRow}>
-                <Button mode="contained" onPress={() => setFiltersVisible(false)} style={styles.filterButton}>Close</Button>
-                <Button mode="contained" onPress={resetFilters} style={styles.filterButton}>Reset</Button>
-              </View>
-          </View>
-        )}
+    </View>
+  </View>
+)}
+
 
         {!isMapView ? (
           <ScrollView>
           {/* {console.log("Filtered Leads:", filteredLeads)} */}
           <FlatList
-            data={filteredLeads}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => navigation.navigate("LeadDetails", { lead: item })}>
-                <Card style={styles.card}>
-                  {item.images.length > 0 ? (
-                    <Image source={{ uri: item.images[0] }} style={styles.leadImage} />
-                  ) : (
-                    <MaterialIcons name="house" size={100} color="#ccc" style={styles.houseIcon} />
-                  )}
-                  <Text style={styles.address}>
-                    {item.name ? item.name : item.address.split(",")[0]}
-                  </Text>
-                  <Text>Owner: {item.owner}</Text>
-                  <Text>Status: {item.status}</Text>
-                </Card>
-              </TouchableOpacity>
-            )}
-          />
+    data={visibleLeads}
+    keyExtractor={(item) => item.id.toString()}
+    contentContainerStyle={{ paddingBottom: 100 }}
+    renderItem={({ item }) => (
+      <TouchableOpacity onPress={() => navigation.navigate("LeadDetails", { lead: item })}>
+        <Card style={styles.card}>
+          {item.images && item.images.length > 0 ? (
+            <ImageCarousel images={item.images} />
+          ) : (
+            <MaterialIcons name="house" size={100} color="#ccc" style={styles.houseIcon} />
+          )}
+          <Text style={styles.address}>
+            {item.name ? item.name : item.address.split(",")[0]}
+          </Text>
+          <Text>Owner: {item.owner}</Text>
+          <Text>Status: {item.status}</Text>
+        </Card>
+      </TouchableOpacity>
+    )}
+    onEndReached={handleLoadMoreLocal}
+    onEndReachedThreshold={0.6}
+    ListFooterComponent={loading && hasMore ? (
+      <Text style={{ textAlign: "center", padding: 10, color: "#7C3AED" }}>Loading leads...</Text>
+    ) : null}
+  />
           </ScrollView>
         ) : (
           <>
@@ -461,6 +627,45 @@ const openActionsMenu = () => {
               )
             ))}
           </MapView>
+
+          <View style={{ position: "absolute", bottom: 10, width: "100%", paddingBottom: 20 }}>
+            <FlatList
+              data={filteredLeads}
+              horizontal
+              keyExtractor={(item) => item.id.toString()}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 10 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (item.latitude && item.longitude) {
+                      setRegion({
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      });
+                    }
+                  }}
+                >
+                  <Card style={{ marginRight: 10, width: 250 }}>
+                    {item.images?.length > 0 ? (
+                      <Image source={{ uri: item.images[0] }} style={{ height: 120, width: "100%", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+                    ) : (
+                      <View style={{ height: 120, justifyContent: "center", alignItems: "center", backgroundColor: "#eee" }}>
+                        <MaterialIcons name="house" size={50} color="#888" />
+                      </View>
+                    )}
+                    <View style={{ padding: 10 }}>
+                      <Text style={{ fontWeight: "bold" }}>{item.name || item.address.split(",")[0]}</Text>
+                      <Text style={{ color: "#666" }}>{item.city}</Text>
+                      <Text>Status: {item.status}</Text>
+                    </View>
+                  </Card>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
           </>
         )}
       </View>
@@ -470,55 +675,240 @@ const openActionsMenu = () => {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
-  container: { padding: 10, backgroundColor: "#DFC5FE" },
-  searchContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10, backgroundColor: "#fff", padding: 10, borderRadius: 10 },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 16 },
-  toggleText: { fontSize: 14, marginRight: 5, fontWeight: "bold" },
+  safeContainer: {
+    flex: 1,
+    backgroundColor: "#F9F5FF", // light lavender background
+  },
+  container: {
+    padding: 10,
+    backgroundColor: "#F9F5FF",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  carouselContainer: {
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  image: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+  },
+  arrowLeft: {
+    position: "absolute",
+    top: "50%",
+    left: 10,
+    zIndex: 2,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 20,
+    padding: 4,
+  },
+  arrowRight: {
+    position: "absolute",
+    top: "50%",
+    right: 10,
+    zIndex: 2,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 20,
+    padding: 4,
+  },
+  overlay: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dotWrapper: {
+    flexDirection: "row",
+    justifyContent: "center",
+    position: "absolute",
+    left: 0,
+    right: 0,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+    backgroundColor: "#D1D5DB",
+  },
+  activeDot: {
+    backgroundColor: "#7C3AED",
+  },
+  counter: {
+    position: "absolute",
+    right: 12,
+    bottom: -3,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    color: "white",
+    fontWeight: "600",
+    fontSize: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },  
+  searchIcon: {
+    marginRight: 8,
+    color: "#7C3AED",
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#1F2937",
+  },
+  toggleText: {
+    fontSize: 13,
+    marginRight: 5,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 10,
-    width: "100%", // Full width of container
+    width: "100%",
   },
   button: {
-    backgroundColor: "#A078C4",
-    borderRadius: 5,
-    flex: 1, // Take up equal space
+    backgroundColor: "#7C3AED",
+    borderRadius: 8,
+    flex: 1,
     height: 40,
-    marginHorizontal: 5, // Small horizontal margin between the buttons
+    marginHorizontal: 5,
+    justifyContent: "center",
   },
-  card: { marginBottom: 10, padding: 10, backgroundColor: "#fff" },
-  address: { fontSize: 16, fontWeight: "bold", marginTop: 5 },
-  map: { flex: 1, borderRadius: 10, height: 400 },
+  filterButton: {
+    backgroundColor: "#7C3AED",
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+    height: 40,
+    justifyContent: "center",
+  },
+  card: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  dropdownList: {
+    borderColor: "#ccc",
+    position: "absolute",
+    zIndex: 5000,
+    elevation: 10, // for Android
+  },
+  address: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginTop: 10,
+  },
+  map: {
+    flex: 1,
+    borderRadius: 10,
+    height: 400,
+  },
   leadImage: {
     width: "100%",
     height: 200,
     borderRadius: 10,
     marginTop: 10,
   },
-  houseIcon: { alignSelf: "center", marginVertical: 20 },
-  noImageText: { fontSize: 14, color: "gray", textAlign: "center", marginTop: 10 },
-  filterRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  filtersContainer: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    position: "absolute",
-    top: 60,
-    left: 10,
-    right: 10,
-    zIndex: 10,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    height: 220,  // Makes it taller
-    width: "80%", // Reduces width slightly
+  houseIcon: {
+    alignSelf: "center",
+    marginVertical: 20,
   },
-  filterButton: { backgroundColor: "#A078C4", borderRadius: 5, flex: 1, marginHorizontal: 5 },
+  noImageText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 10,
+  },
+  filterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  filtersContainer: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16, // maintain left/right spacing
+    paddingBottom: 12,
+    borderRadius: 12,
+    marginVertical: 6,     // optional: reduce vertical margin too
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    elevation: 2,
+    width: '100%',
+    alignSelf: "center",
+    overflow: "visible",
+    zIndex: 1000,
+    position: 'relative',
+  }, 
+  toggleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  
+  resetButton: {
+    backgroundColor: "#7C3AED",
+    borderRadius: 8,
+    height: 40,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  
+  toggleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 10,
+    alignItems: "center",
+    gap: 10,
+  },
+  halfWidth: {
+    width: "48%",
+  },
+  
+  dropdown: {
+    borderColor: "#ccc",
+    minHeight: 40,
+  },
+  
+  dropdownList: {
+    borderColor: "#ccc",
+    zIndex: 9999,
+  },
+  
+  filterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 2,
+    gap: 10,
+  },
 });
+
 
 export default LeadListScreen;
