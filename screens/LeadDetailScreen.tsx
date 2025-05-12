@@ -11,7 +11,7 @@ import * as ImagePicker from "expo-image-picker";
 import LeadListScreen from "./LeadListScreen";
 
 
-const API_URL = "http://34.57.202.249:5001/api/leads";
+const API_URL = "http://34.31.159.135:5002/api/leads";
 const IMAGE_UPLOAD_URL = "http://34.57.202.249:5001/api/upload";
 
 export default function LeadDetailScreen({ route, navigation }) {
@@ -347,59 +347,153 @@ export default function LeadDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: { flex: 1, backgroundColor: "#DFC5FE" },
+  safeContainer: {
+    flex: 1,
+    backgroundColor: "#F9F5FF", // Light lavender background for consistency
+  },
   scrollContainer: { padding: 15 },
   backButton: { marginTop: 10, marginLeft: 10 },
-  headerIcons: { flexDirection: "row", },
-  trashIcon: { paddingRight: 10 },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    marginBottom: 20,
+  },
+  addressText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1F2937", // Dark slate
+    flex: 1,
+    textAlign: "center",
+  },
   addImageContainer: {
     width: "100%",
     height: 250,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#DFC5FE",
+    backgroundColor: "#EDE9FE", // soft violet
     borderRadius: 10,
   },
-  headerContainer: {
-    flexDirection: "row",
+  carouselContainer: {
     alignItems: "center",
-    justifyContent: "space-between", // ✅ Ensures proper alignment
-    paddingHorizontal: 15,
-    marginBottom: 20,
+    marginVertical: 20,
   },
-  header: { flexDirection: "row", justifyContent: "center", alignItems: "center", },
-  addressText: { fontSize: 22, fontWeight: "bold", textAlign: "center", },
-  carouselContainer: { alignItems: "center", marginVertical: 20 },
-  leadImage: { width: "100%", height: 250, borderRadius: 10 },
-  arrowLeft: { position: "absolute", left: 10, top: "50%", zIndex: 1 },
-  arrowRight: { position: "absolute", right: 10, top: "50%", zIndex: 1 },
-  statusContainer: { marginTop: 20 },
-  statusTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
-  statusInput: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, backgroundColor: "#fff" },
-  pickerContainer: { marginVertical: 10, zIndex: 1000, },
-  notesContainer: { marginTop: 20 },
-  dropdown: { borderColor: "#ccc", backgroundColor: "#fff", width: "100%", zIndex: 2000, },
-  dropdownContainer: { borderColor: "#ccc", width: "100%", zIndex: 3000, },
-  notesTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
-  notesInput: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, height: 100 },
-  deleteButton: { backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center", marginTop: 20 },
-  buttonText: { color: "white", fontSize: 16, fontWeight: "bold" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
-  modalContainer: { width: "90%", backgroundColor: "#fff", padding: 20, borderRadius: 10 },
-  modalField: { marginBottom: 15 },
-  label: { fontSize: 16, fontWeight: "bold" },
-  input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5 },
-  saveButton: { backgroundColor: "#7B5BA6", marginTop: 10 },
+  leadImage: {
+    width: "100%",
+    height: 250,
+    borderRadius: 10,
+  },
+  arrowLeft: {
+    position: "absolute",
+    left: 10,
+    top: "50%",
+    zIndex: 1,
+  },
+  arrowRight: {
+    position: "absolute",
+    right: 10,
+    top: "50%",
+    zIndex: 1,
+  },
+  pickerContainer: {
+    marginVertical: 10,
+    zIndex: 1000,
+  },
+  dropdown: {
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+  },
+  dropdownContainer: {
+    borderColor: "#D1D5DB",
+  },
+  notesContainer: {
+    marginTop: 20,
+  },
+  notesTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 5,
+    color: "#374151",
+  },
+  notesInput: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    padding: 10,
+    borderRadius: 8,
+    height: 100,
+    color: "#1F2937",
+  },
+  deleteButton: {
+    backgroundColor: "#7C3AED", // Deep violet button
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "90%",
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 10,
+  },
+  modalField: {
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    padding: 10,
+    borderRadius: 8,
+    color: "#1F2937",
+  },
+  saveButton: {
+    backgroundColor: "#7C3AED",
+    marginTop: 10,
+  },
   removeButton: {
     position: "absolute",
     top: 5,
     right: 5,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  removeButtonText: { color: "white", fontSize: 18, fontWeight: "bold" },
+  removeButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  noImageContainer: {
+    height: 250,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E5E7EB",
+    borderRadius: 10,
+  },
+  noImageText: {
+    color: "#6B7280",
+    fontSize: 14,
+    marginTop: 8,
+  },
 });

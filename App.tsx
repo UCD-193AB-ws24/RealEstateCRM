@@ -15,6 +15,7 @@ import MapScreen from "./screens/MapScreen";
 import LeadListScreen from "./screens/LeadListScreen";
 import LeadDetailScreen from "./screens/LeadDetailScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import SplashScreen from "./screens/SplashScreen";
 
 LogBox.ignoreAllLogs();
 
@@ -43,7 +44,7 @@ function BottomTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: "#A078C4",
+        tabBarActiveTintColor: "#7C3AED",
         tabBarInactiveTintColor: "gray",
       })}
     >
@@ -63,6 +64,7 @@ export default function App() {
         <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={BottomTabs} />
+          <Stack.Screen name="HomeScreen" component={HomeScreen} />
           <Stack.Screen name="DriveStack" component={DriveStack} />
           <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
           <Stack.Screen name="CameraScreen" component={CameraScreen} />

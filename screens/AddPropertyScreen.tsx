@@ -3,13 +3,19 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, Scro
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
+import { ActivityIndicator } from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import DropDownPicker from "react-native-dropdown-picker";
+
+
 
 // const API_URL = "http://localhost:5001/api/leads";
 // const IMAGE_UPLOAD_URL = "http://localhost:5001/api/upload";
 
-const baseUrl = "http://34.57.202.249:5001";
+const baseUrl = "http://34.31.159.135:5002";
 const API_URL = `${baseUrl}/api/leads`;
 const IMAGE_UPLOAD_URL = `${baseUrl}/api/upload`;
 
@@ -30,6 +36,16 @@ const AddPropertyScreen = () => {
   const [zip, setZip] = useState("");
   const [owner, setOwner] = useState("");
   const [notes, setNotes] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+];
+
 
   useEffect(() => {
     if (isFromMap) {
@@ -113,7 +129,6 @@ const AddPropertyScreen = () => {
   
       const response = await fetch(url);
       const data = await response.json();
-      console.log("data", data);
   
       if (data.status === "OK") {
         const result = data.results.find(r => r.types.includes("street_address") || r.types.includes("premise") || r.types.includes("route") || r.types.includes("subpremise"));
@@ -197,205 +212,331 @@ const AddPropertyScreen = () => {
 
   // Function to add property to database
   const handleAddProperty = async () => {
+    setIsLoading(true); 
     const storedUser = await SecureStore.getItemAsync("user");
     if (!storedUser) return;
-
+  
     const parsedUser = JSON.parse(storedUser);
     const userId = parsedUser.id;
-
-    // trim inputs for cleaner validation
+  
+    // Trim inputs for validation
     const trimmedName = name.trim();
     const trimmedAddress = address.trim();
     const trimmedCity = city.trim();
     const trimmedState = state.trim();
     const trimmedZip = zip.trim();
     const trimmedOwner = owner.trim();
-
-    // Validate each field
-  if (!trimmedName) {
-    Alert.alert("Missing Property Name", "Please enter a property name (e.g., '3 bed 2 bath').");
-    return;
-  }
-
-  if (!trimmedAddress) {
-    Alert.alert("Missing Address", "Please enter the property address.");
-    return;
-  }
-
-  if (!trimmedCity) {
-    Alert.alert("Missing City", "Please enter the city.");
-    return;
-  }
-
-  if (!trimmedState) {
-    Alert.alert("Missing State", "Please enter the state.");
-    return;
-  }
-
-  if (!trimmedZip || !/^\d{5}$/.test(trimmedZip)) {
-    Alert.alert("Invalid Zip Code", "Please enter a valid 5-digit zip code.");
-    return;
-  }
-
-  if (!trimmedOwner) {
-    Alert.alert("Missing Owner", "Please enter the owner's name.");
-    return;
-  }
-
-    if (!address || !city || !state || !zip || !owner) {
-      Alert.alert("Error", "Please fill in all fields.");
+  
+    if (!trimmedName || !trimmedAddress || !trimmedCity || !trimmedState || !trimmedZip || !trimmedOwner) {
+      Alert.alert("Error", "Please fill in all required fields.");
       return;
     }
   
-    let newLead = {
-      name,
-      address,
-      city,
-      state,
-      zip,
-      owner,
+    if (!/^\d{5}$/.test(trimmedZip)) {
+      Alert.alert("Invalid Zip Code", "Please enter a valid 5-digit zip code.");
+      return;
+    }
+  
+    const newLead = {
+      name: trimmedName,
+      address: trimmedAddress,
+      city: trimmedCity,
+      state: trimmedState,
+      zip: trimmedZip,
+      owner: trimmedOwner,
       images: images.length > 0 ? images : [],
       userId,
       notes,
+      isPending: true,
+      id: Date.now(), // temporary local ID in case API fails
     };
+
+    // ✅ Update cachedLeads in AsyncStorage
+  try {
+    const existing = await AsyncStorage.getItem("cachedLeads");
+    const leads = existing ? JSON.parse(existing) : [];
+    const updatedLeads = [newLead, ...leads];
+    await AsyncStorage.setItem("cachedLeads", JSON.stringify(updatedLeads));
+    console.log("✅ Added new lead to cachedLeads");
+  } catch (error) {
+    console.warn("⚠️ Failed to update cachedLeads:", error);
+  }
+
+  // ✅ Update cachedStats in AsyncStorage
+  try {
+    const cached = await AsyncStorage.getItem("cachedStats");
+    const stats = cached ? JSON.parse(cached) : {};
+    const updatedStats = {
+      ...stats,
+      totalLeads: (stats.totalLeads || 0) + 1,
+      activeListings: (stats.activeListings || 0) + 1,
+    };
+    await AsyncStorage.setItem("cachedStats", JSON.stringify(updatedStats));
+    console.log("📊 Updated cachedStats:", updatedStats);
+    navigation.navigate("Home", { optimisticStats: updatedStats });
+  } catch (error) {
+    console.warn("⚠️ Failed to update cachedStats:", error);
+  }
+
   
+    // 🚀 Navigate back to Home with optimisticStats
+    setIsLoading(false);
+  
+    // 🔄 Send to backend
     try {
-      let response = await fetch(API_URL, {
+      Alert.alert("Success", "Property added successfully!");
+      const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newLead),
       });
   
-      let data = await response.json();
-      // console.log("🛬 Server response:", data);
-  
       if (!response.ok) throw new Error("Failed to add property");
+      const data = await response.json();
   
-      Alert.alert("Success", "Property added successfully!");
-      navigation.goBack();
     } catch (error) {
       console.error("❌ Error adding property:", error);
       Alert.alert("Error", "Failed to add property.");
     }
   };
   
-  
-  
-  
 
   return (
-    <SafeAreaView style={styles.safeContainer} >
-    <View style={styles.container}>
-      <View style={styles.photoButtonContainer}>
-        <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
-          <Text style={styles.photoButtonText}>Take a Picture</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safeContainer}>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loadingText}>Uploading property...</Text>
+        </View>
+      ) : (
+        <View style={styles.container}>
+          {/* All your form content here */}
+          <View style={styles.photoButtonContainer}>
+            <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(true)}>
+              <Text style={styles.photoButtonText}>Take a Picture</Text>
+            </TouchableOpacity>
+  
+            <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
+              <Text style={styles.photoButtonText}>Select from Gallery</Text>
+            </TouchableOpacity>
+          </View>
+  
+          {images.length > 0 && (
+            <ScrollView horizontal style={styles.imageScroll}>
+              {images.map((imgUri, index) => (
+                <View key={index} style={styles.imageContainer}>
+                  <Image source={{ uri: imgUri }} style={styles.imagePreview} />
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeImage(index)}
+                  >
+                    <Text style={styles.removeButtonText}>x</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+  
+          <ScrollView>
+            <Text style={styles.label}>Property Name</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Enter property name (e.g., 4 bed 4 bath)" />
+  
+            <Text style={styles.label}>Address</Text>
+            <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Enter address" />
+  
+            <Text style={styles.label}>City</Text>
+            <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Enter city" />
+  
+              <View style={styles.row}>
+                <View style={styles.halfWidth}>
+                  <TextInput
+                    style={styles.input}
+                    value={state}
+                    onChangeText={setState}
+                    placeholder="State"
+                  />
+                </View>
 
-        <TouchableOpacity style={styles.photoButton} onPress={() => pickImage(false)}>
-          <Text style={styles.photoButtonText}>Select from Gallery</Text>
-        </TouchableOpacity>
-      </View>
+                <View style={styles.halfWidth}>
+                  <TextInput
+                    style={styles.input}
+                    value={zip}
+                    onChangeText={setZip}
+                    placeholder="Zip Code"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
 
-
-      {/* {image && <Image source={{ uri: image }} style={styles.imagePreview} />} */}
-
-      {images.length > 0 && (
-        <ScrollView horizontal style={styles.imageScroll}>
-          {images.map((imgUri, index) => (
-            <View key={index} style={styles.imageContainer}>
-              <Image source={{ uri: imgUri }} style={styles.imagePreview} />
-              <TouchableOpacity 
-                style={styles.removeButton} 
-                onPress={() => removeImage(index)}
-              >
-                <Text style={styles.removeButtonText}>x</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
+  
+            <Text style={styles.label}>Owner</Text>
+            <TextInput style={styles.input} value={owner} onChangeText={setOwner} placeholder="Enter owner's name" />
+  
+            <Text style={styles.label}>Notes</Text>
+            <TextInput
+              style={styles.input}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Any additional details..."
+              multiline
+            />
+  
+            <TouchableOpacity style={styles.addButton} onPress={async () => {
+              setIsLoading(true); // ✅ Trigger loading state
+              await handleAddProperty();
+              setIsLoading(false); // 🟣 Done
+            }}>
+              <Text style={styles.addButtonText}>Add Property</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
       )}
-
-      <ScrollView>
-      <Text style={styles.label}>Property Name</Text>
-      <TextInput 
-        style={styles.input} 
-        value={name} 
-        onChangeText={setName} 
-        placeholder="Enter property name (e.g., 4 bed 4 bath)" 
-      />
-
-      <Text style={styles.label}>Address</Text>
-      <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Enter address" />
-
-      <Text style={styles.label}>City</Text>
-      <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Enter city" />
-
-      <Text style={styles.label}>State</Text>
-      <TextInput style={styles.input} value={state} onChangeText={setState} placeholder="Enter state" />
-
-      <Text style={styles.label}>Zip Code</Text>
-      <TextInput style={styles.input} value={zip} onChangeText={setZip} placeholder="Enter zip code" keyboardType="numeric" />
-
-      <Text style={styles.label}>Owner</Text>
-      <TextInput style={styles.input} value={owner} onChangeText={setOwner} placeholder="Enter owner's name" />
-
-      <Text style={styles.label}>Notes</Text>
-      <TextInput
-        style={styles.input}
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Any additional details..."
-        multiline
-      />
-
-      <TouchableOpacity style={styles.addButton} onPress={handleAddProperty}>
-        <Text style={styles.addButtonText}>Add Property</Text>
-      </TouchableOpacity>
-      </ScrollView>
-    </View>
     </SafeAreaView>
   );
+  
 };
 
 const styles = StyleSheet.create({
-  safeContainer: { flex: 1},
-  container: { flex: 1, padding: 20 },
-  // photoButton: { backgroundColor: "#A078C4", padding: 10, borderRadius: 5, marginBottom: 10, alignItems: "center" },
-  photoButtonText: { color: "white", fontSize: 16 },
-  imageScroll: { flexDirection: "row", marginBottom: 10 },
-  imageContainer: { position: "relative", marginRight: 10 },
-  imagePreview: { width: 100, height: 100, borderRadius: 10, marginBottom: 10 },
+  safeContainer: {
+    flex: 1,
+    backgroundColor: "#F9F5FF",
+  },
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 12,
+    color: "#374151", // slate-700
+  },
+  input: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB", // gray-200
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 6,
+    fontSize: 14,
+    color: "#111827", // slate-900
+  },
+  loadingContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  backgroundColor: "#F9F5FF",
+},
+loadingText: {
+  marginTop: 10,
+  fontSize: 16,
+  color: "#6B7280",
+},
+pickerContainer: {
+  borderWidth: 1,
+  borderColor: "#E5E7EB",
+  borderRadius: 8,
+  marginTop: 6,
+  backgroundColor: "#FFFFFF",
+  overflow: "hidden", // fixes text overflow
+  height: 50, // consistent height
+  justifyContent: "center",
+},
+picker: {
+  height: 50,
+  width: "100%",
+  color: "#111827",
+},
+
+row: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  gap: 10,
+  marginTop: 6,
+},
+halfWidth: {
+  width: "48%",
+},
+dropdown: {
+  borderColor: "#E5E7EB",
+  minHeight: 48,
+},
+dropdownList: {
+  borderColor: "#E5E7EB",
+  zIndex: 1000,
+},
+
+halfInputContainer: {
+  flex: 1,
+},
+  addButton: {
+    marginTop: 24,
+    backgroundColor: "#7C3AED",
+    padding: 16,
+    borderRadius: 10,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  photoButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: "#7C3AED",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginHorizontal: 6,
+  },
+  photoButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  imageScroll: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  imageContainer: {
+    position: "relative",
+    marginRight: 10,
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
   removeButton: {
     position: "absolute",
-    top: 5,
-    right: 5,
-    backgroundColor: "white",
+    top: 4,
+    right: 4,
+    backgroundColor: "#FFFFFF",
     width: 24,
     height: 24,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "lightgray",
+    borderColor: "#D1D5DB", // gray-300
   },
-  removeButtonText: { color: "lightgray", fontSize: 18, fontWeight: "bold" },
-  label: { fontSize: 16, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, marginTop: 5 },
-  addButton: { marginTop: 20, backgroundColor: "#A078C4", padding: 15, borderRadius: 5, alignItems: "center" },
-  addButtonText: { color: "white", fontSize: 16 },
-  photoButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  photoButton: {
-    flex: 1,
-    backgroundColor: "#A078C4",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginHorizontal: 5, // Adds spacing between buttons
+  removeButtonText: {
+    color: "#6B7280", // gray-500
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
+
 
 export default AddPropertyScreen;

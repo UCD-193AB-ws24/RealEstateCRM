@@ -10,8 +10,8 @@ require("dotenv").config();
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); // FIX: Parse form fields correctly
+app.use(bodyParser.json({ limit: "20mb" })); // or more, like "20mb"
+app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.json());
 
 const uploadDir = path.join(__dirname, "uploads");
@@ -67,6 +67,20 @@ const User = sequelize.define(
   { tableName: "users", timestamps: true }
 );
 
+function saveBase64Image(base64String, uploadDir = "uploads") {
+  const matches = base64String.match(/^data:(.+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) throw new Error("Invalid base64 image");
+
+  const mimeType = matches[1];
+  const extension = mimeType.split("/")[1];
+  const base64Data = matches[2];
+  const filename = `${Date.now()}.${extension}`;
+  const filepath = path.join(uploadDir, filename);
+
+  fs.writeFileSync(filepath, Buffer.from(base64Data, "base64"));
+  return `http://localhost:5001/uploads/${filename}`; // Return public path
+}
+
 
 app.post("/api/users", async (req, res) => {
   try {
@@ -97,16 +111,24 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
-app.get("/api/stats", async (req, res) => {
+app.get("/api/stats/:userId", async (req, res) => {
   try {
-    const totalLeads = await Lead.count();
-    const dealsClosed = await Lead.count({ where: { status: "Sale" } });
-    const propertiesContacted = await Lead.count({ where: { status: "Contact" } });
-    const offersMade = await Lead.count({ where: { status: "Offer" } });
-    const activeListings = await Lead.count({ where: { status: { [Op.in]: ["Lead", "Offer", "Contact"] } } });
+    const { userId } = req.params;
 
-    // Calculate percentage of deals closed
-    const percentageDealsClosed = totalLeads > 0 ? ((dealsClosed / totalLeads) * 100).toFixed(2) : "0.00";
+    const totalLeads = await Lead.count({ where: { userId } });
+    const dealsClosed = await Lead.count({ where: { userId, status: "Sale" } });
+    const propertiesContacted = await Lead.count({ where: { userId, status: "Contact" } });
+    const offersMade = await Lead.count({ where: { userId, status: "Offer" } });
+    const activeListings = await Lead.count({ 
+      where: { 
+        userId, 
+        status: { [Op.in]: ["Lead", "Offer", "Contact"] } 
+      } 
+    });
+
+    const percentageDealsClosed = totalLeads > 0
+      ? ((dealsClosed / totalLeads) * 100).toFixed(2)
+      : "0.00";
 
     res.json({
       totalLeads,
@@ -114,14 +136,15 @@ app.get("/api/stats", async (req, res) => {
       propertiesContacted,
       offersMade,
       activeListings,
-      percentageDealsClosed: percentageDealsClosed + "%"
+      percentageDealsClosed: `${percentageDealsClosed}%`
     });
 
   } catch (error) {
-    console.error("Error fetching stats:", error);
+    console.error("Error fetching user-specific stats:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 
 
@@ -160,12 +183,23 @@ app.post("/api/leads", async (req, res) => {
     //   return res.status(404).json({ error: "User not found" });
     // }
 
-    const newLead = await Lead.create({ 
-      name: name || null, 
-      address, city, state, zip, owner, images, notes,
+    const processedImages = Array.isArray(images)
+      ? images.map(img => img.startsWith("data:") ? saveBase64Image(img) : img)
+      : [];
+
+    const newLead = await Lead.create({
+      name: name || null,
+      address,
+      city,
+      state,
+      zip,
+      owner,
       status: status || "Lead",
-      userId // 🔥 Associate lead with user
+      images: processedImages,
+      notes,
+      userId,
     });
+
 
     res.status(201).json(newLead);
   } catch (error) {
@@ -189,7 +223,11 @@ app.put("/api/leads/:id", async (req, res) => {
     if (zip !== undefined) fieldsToUpdate.zip = zip;
     if (owner !== undefined) fieldsToUpdate.owner = owner;
     if (status !== undefined) fieldsToUpdate.status = status;
-    if (images !== undefined) fieldsToUpdate.images = images;
+    if (images !== undefined) {
+      fieldsToUpdate.images = Array.isArray(images)
+        ? images.map(img => img.startsWith("data:") ? saveBase64Image(img) : img)
+        : [];
+    }
 
     const updatedLead = await Lead.update(fieldsToUpdate, { where: { id } });
 
