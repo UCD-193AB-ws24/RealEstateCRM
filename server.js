@@ -5,6 +5,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const bodyParser = require("body-parser");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 require("dotenv").config();
 
@@ -303,6 +304,35 @@ app.post("/api/upload", (req, res, next) => {
 
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+app.post("/api/chat", async (req, res) => {
+  const { question } = req.body;
+
+  if (!question) {
+    return res.status(400).json({ error: "Question is required." });
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        temperature: 0.9,
+        maxOutputTokens: 2048,
+      },
+    });
+
+    const prompt = question;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    res.json({ response: text });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get response from Gemini API.", details: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, async () => {
