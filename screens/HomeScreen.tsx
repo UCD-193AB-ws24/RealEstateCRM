@@ -20,15 +20,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const baseUrl = "http://34.31.159.135:5002/api/stats";
 const chatbotUrl = "http://10.0.2.2:5001/api/chat";
 
+interface ChatMessage {
+  question: string;
+  answer: string;
+}
+
 const HomeScreen = (route) => {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
-  const lastAppliedRef = useRef(null);
   const [stats, setStats] = useState(null);
+  const lastAppliedRef = useRef(null);
 
   const [showModal, setShowModal] = useState(false);
   const [question, setQuestion] = useState("");
-  const [chatbotResponse, setChatbotResponse] = useState("");
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   const fetchStats = async (userId) => {
     try {
@@ -96,7 +101,15 @@ const HomeScreen = (route) => {
       console.log("Sending question to Gemini:", question);
       const response = await axios.post(chatbotUrl, { question: question });
       console.log("Received response:", response.data);
-      setChatbotResponse(response.data.response || "No response received.");
+      
+      // Add new message pair to chat history
+      setChatHistory(prevHistory => [...prevHistory, {
+        question: question,
+        answer: response.data.response || "No response received."
+      }]);
+      
+      // Clear input
+      setQuestion("");
     } catch (err) {
       console.error("Error details:", err.response?.data || err.message);
       Alert.alert("Error", err.response?.data?.error || "Failed to get response from Gemini.");
@@ -170,24 +183,42 @@ const HomeScreen = (route) => {
       >
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Ask Gemini a Question</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Type your question here"
-              value={question}
-              onChangeText={setQuestion}
-              multiline
-            />
-            <TouchableOpacity style={styles.modalButton} onPress={handleAskGemini}>
-              <Text style={styles.modalButtonText}>Submit</Text>
-            </TouchableOpacity>
-            {chatbotResponse !== "" && (
-              <View style={styles.responseBox}>
-                <Text style={styles.responseText}>{chatbotResponse}</Text>
-              </View>
-            )}
-            <TouchableOpacity onPress={() => setShowModal(false)}>
-              <Text style={{ color: "#7C3AED", marginTop: 12 }}>Close</Text>
+            <Text style={styles.modalTitle}>Ask Gemini</Text>
+            
+            <ScrollView style={styles.chatContainer}>
+              {chatHistory.map((chat, index) => (
+                <View key={index}>
+                  <View style={styles.userMessage}>
+                    <Text style={styles.userMessageText}>{chat.question}</Text>
+                  </View>
+                  <View style={styles.botMessage}>
+                    <Text style={styles.messageText}>{chat.answer}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Type your question here"
+                value={question}
+                onChangeText={setQuestion}
+                multiline
+              />
+              <TouchableOpacity 
+                style={styles.modalButton} 
+                onPress={handleAskGemini}
+              >
+                <Text style={styles.modalButtonText}>Ask</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={() => setShowModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -272,49 +303,87 @@ const styles = StyleSheet.create({
   },
   modalBackground: {
     flex: 1,
-    backgroundColor: "#000000AA",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
     width: "90%",
+    height: "80%",
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
+    position: 'relative',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 16,
+    textAlign: 'center',
+    color: "#1F2937",
+  },
+  chatContainer: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  userMessage: {
+    backgroundColor: "#7C3AED",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    maxWidth: '80%',
+    alignSelf: 'flex-end',
+  },
+  botMessage: {
+    backgroundColor: "#F3F4F6",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    maxWidth: '80%',
+    alignSelf: 'flex-start',
+  },
+  messageText: {
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  userMessageText: {
+    fontSize: 14,
+    color: "#FFFFFF",
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   input: {
-    height: 80,
+    flex: 1,
+    height: 40,
     borderColor: "#E5E7EB",
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
-    textAlignVertical: "top",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginRight: 8,
+    backgroundColor: "#F9FAFB",
   },
   modalButton: {
     backgroundColor: "#7C3AED",
-    padding: 12,
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 20,
+    width: 60,
     alignItems: "center",
   },
   modalButtonText: {
     color: "white",
     fontWeight: "bold",
-  },
-  responseBox: {
-    marginTop: 12,
-    backgroundColor: "#F3F4F6",
-    padding: 10,
-    borderRadius: 8,
-  },
-  responseText: {
     fontSize: 14,
-    color: "#111827",
+  },
+  closeButton: {
+    alignSelf: 'center',
+  },
+  closeButtonText: {
+    color: "#7C3AED",
+    fontSize: 16,
+    fontWeight: "600",
   },
   geminiButton: {
     position: 'absolute',
