@@ -16,6 +16,7 @@ import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Markdown from 'react-native-markdown-display';
 
 const baseUrl = "http://34.31.159.135:5002/api/stats";
 const chatbotUrl = "http://10.0.2.2:5001/api/chat";
@@ -192,7 +193,9 @@ const HomeScreen = (route) => {
                     <Text style={styles.userMessageText}>{chat.question}</Text>
                   </View>
                   <View style={styles.botMessage}>
-                    <Text style={styles.messageText}>{chat.answer}</Text>
+                    <Markdown style={markdownStyles}>
+                      {chat.answer}
+                    </Markdown>
                   </View>
                 </View>
               ))}
@@ -419,5 +422,58 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
 });
+
+const markdownStyles = {
+  body: {
+    color: "#1F2937",
+    fontSize: 14,
+  },
+  heading1: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginVertical: 8,
+    color: "#1F2937",
+  },
+  heading2: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 8,
+    color: "#1F2937",
+  },
+  strong: {
+    fontWeight: 'bold',
+    color: "#1F2937",
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  link: {
+    color: "#7C3AED",
+    textDecorationLine: 'underline',
+  },
+  list_item: {
+    marginVertical: 4,
+  },
+  bullet_list: {
+    marginVertical: 8,
+  },
+  ordered_list: {
+    marginVertical: 8,
+  },
+  code_inline: {
+    fontFamily: 'monospace',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  code_block: {
+    fontFamily: 'monospace',
+    backgroundColor: '#F3F4F6',
+    padding: 8,
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+};
 
 export default HomeScreen;

@@ -5,7 +5,11 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const bodyParser = require("body-parser");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
+const { PDFLoader } = require("@langchain/community/document_loaders/fs/pdf");
+const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
+const { MemoryVectorStore } = require("langchain/vectorstores/memory");
+const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 
 require("dotenv").config();
 
@@ -82,6 +86,62 @@ function saveBase64Image(base64String, uploadDir = "uploads") {
   return `http://localhost:5001/uploads/${filename}`; // Return public path
 }
 
+// Initialize vector store
+let vectorStore = null;
+let isInitializing = false;
+
+// Function to initialize the knowledge base
+async function initializeKnowledgeBase() {
+  if (isInitializing) return;
+  
+  try {
+    isInitializing = true;
+    console.log("Starting knowledge base initialization...");
+
+    const pdfPath = path.join(__dirname, "docs", "user_manual.pdf");
+    if (!fs.existsSync(pdfPath)) {
+      throw new Error("User manual PDF not found in docs directory");
+    }
+
+    // Load PDF
+    const loader = new PDFLoader(pdfPath);
+    const docs = await loader.load();
+    console.log(`Loaded ${docs.length} pages from PDF`);
+
+    // Split text into chunks
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+    const splitDocs = await textSplitter.splitDocuments(docs);
+    console.log(`Split into ${splitDocs.length} chunks`);
+
+    // Create embeddings and store in vector store
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      modelName: "embedding-001",
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+
+    vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, embeddings);
+    console.log("Knowledge base initialized successfully");
+  } catch (error) {
+    console.error("Error initializing knowledge base:", error);
+    vectorStore = null;
+  } finally {
+    isInitializing = false;
+  }
+}
+
+// Initialize knowledge base when server starts
+initializeKnowledgeBase();
+
+// Add a new endpoint to check knowledge base status
+app.get("/api/chat/status", (req, res) => {
+  res.json({
+    initialized: vectorStore !== null,
+    initializing: isInitializing
+  });
+});
 
 app.post("/api/users", async (req, res) => {
   try {
@@ -146,9 +206,6 @@ app.get("/api/stats/:userId", async (req, res) => {
   }
 });
 
-
-
-
 // Fetch all leads (GET route)
 app.get("/api/leads/:userId", async (req, res) => {
   try {
@@ -165,7 +222,6 @@ app.get("/api/leads/:userId", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // Add a new lead without an image (POST route)
 app.post("/api/leads", async (req, res) => {
@@ -209,7 +265,6 @@ app.post("/api/leads", async (req, res) => {
   }
 });
 
-
 app.put("/api/leads/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -245,7 +300,6 @@ app.put("/api/leads/:id", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 // Delete a lead (DELETE route)
 app.delete("/api/leads/:id", async (req, res) => {
@@ -299,9 +353,6 @@ app.post("/api/upload", (req, res, next) => {
   }
 });
 
-
-
-
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -315,22 +366,52 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
+    if (!vectorStore) {
+      if (!isInitializing) {
+        // Try to initialize if it failed before
+        await initializeKnowledgeBase();
+      }
+      
+      if (!vectorStore) {
+        return res.status(503).json({ 
+          error: "Knowledge base not available.", 
+          initializing: isInitializing 
+        });
+      }
+    }
+
+    // Search for relevant context
+    const relevantDocs = await vectorStore.similaritySearch(question, 3);
+    const context = relevantDocs.map(doc => doc.pageContent).join("\n\n");
+
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
       generationConfig: {
-        temperature: 0.9,
+        temperature: 0.7,
         maxOutputTokens: 2048,
       },
     });
 
-    const prompt = question;
+    const prompt = `You are a helpful assistant for a Real Estate CRM application. Use the following context from the app's user manual to answer the user's question. If the question cannot be answered using the context, politely say so and suggest asking about the app's features or usage instead.
+
+Context from user manual:
+${context}
+
+User question: ${question}
+
+Please provide a clear and concise response based on the context provided. Focus on being helpful and accurate. If the user asks about features or workflows not covered in the manual, politely explain that and suggest asking about documented features.`;
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
     res.json({ response: text });
   } catch (error) {
-    res.status(500).json({ error: "Failed to get response from Gemini API.", details: error.message });
+    console.error("Chat error:", error);
+    res.status(500).json({ 
+      error: "Failed to process your question.", 
+      details: error.message 
+    });
   }
 });
 
