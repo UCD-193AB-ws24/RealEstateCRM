@@ -305,7 +305,7 @@ const US_STATES = [
     <SafeAreaView style={styles.safeContainer}>
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+          <ActivityIndicator size="large" color="#2b7fff" />
           <Text style={styles.loadingText}>Uploading property...</Text>
         </View>
       ) : (
@@ -471,7 +471,7 @@ halfInputContainer: {
 },
   addButton: {
     marginTop: 24,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     padding: 16,
     borderRadius: 10,
     alignItems: "center",
@@ -493,7 +493,7 @@ halfInputContainer: {
   },
   photoButton: {
     flex: 1,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",

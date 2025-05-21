@@ -497,7 +497,7 @@ const openActionsMenu = () => {
             value={isMapView}
             onValueChange={() => setIsMapView(!isMapView)}
             trackColor={{ false: "#D1D5DB", true: "#C4B5FD" }} // light violet track
-            thumbColor={isMapView ? "#7C3AED" : "#f4f3f4"}     // deep violet thumb
+            thumbColor={isMapView ? "#2b7fff" : "#f4f3f4"}     // blue thumb
           />
 
         </View>
@@ -607,7 +607,7 @@ const openActionsMenu = () => {
     onEndReached={handleLoadMoreLocal}
     onEndReachedThreshold={0.6}
     ListFooterComponent={loading && hasMore ? (
-      <Text style={{ textAlign: "center", padding: 10, color: "#7C3AED" }}>Loading leads...</Text>
+      <Text style={{ textAlign: "center", padding: 10, color: "#2b7fff" }}>Loading leads...</Text>
     ) : null}
   />
           </ScrollView>
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1D5DB",
   },
   activeDot: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
   },
   counter: {
     position: "absolute",
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
   },  
   searchIcon: {
     marginRight: 8,
-    color: "#7C3AED",
+    color: "#2b7fff",
   },
   searchInput: {
     flex: 1,
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   button: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     borderRadius: 8,
     flex: 1,
     height: 40,
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   filterButton: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     borderRadius: 8,
     flex: 1,
     marginHorizontal: 5,
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
   },
   
   resetButton: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     borderRadius: 8,
     height: 40,
     paddingHorizontal: 16,

@@ -134,7 +134,7 @@ const HomeScreen = (route) => {
     return (
       <SafeAreaView style={styles.safeContainer}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ color: "#7C3AED", fontSize: 16 }}>Loading stats...</Text>
+          <Text style={{ color: "#2b7fff", fontSize: 16 }}>Loading stats...</Text>
         </View>
       </SafeAreaView>
     );
@@ -146,7 +146,7 @@ const HomeScreen = (route) => {
         {user && <Text style={styles.welcomeText}>Hello, {user.given_name}</Text>}
 
         <View style={styles.grid}>
-          <StatCard label="Total Leads" value={stats.totalLeads} iconName="target-outline" bgColor="#EDE9FE" iconColor="#7C3AED" />
+          <StatCard label="Total Leads" value={stats.totalLeads} iconName="target-outline" bgColor="#E6F0FF" iconColor="#2b7fff" />
           <StatCard label="Deals Closed" value={stats.dealsClosed} iconName="hand-left-outline" bgColor="#E0E7FF" iconColor="#4F46E5" />
           <StatCard label="Properties Contacted" value={stats.propertiesContacted} iconName="call-outline" bgColor="#E0F2FE" iconColor="#0284C7" />
           <StatCard label="Offers Made" value={stats.offersMade} iconName="business-outline" bgColor="#FEF3C7" iconColor="#D97706" />
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginTop: 32,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   userMessage: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
   },
   modalButton: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#2b7fff",
     padding: 10,
     borderRadius: 20,
     width: 60,
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   closeButtonText: {
-    color: "#7C3AED",
+    color: "#2b7fff",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#2b7fff',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -448,7 +448,7 @@ const markdownStyles = {
     fontStyle: 'italic',
   },
   link: {
-    color: "#7C3AED",
+    color: "#2b7fff",
     textDecorationLine: 'underline',
   },
   list_item: {

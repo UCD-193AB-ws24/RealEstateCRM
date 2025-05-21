@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 20,
     right: 20,
-    backgroundColor: "#7C3AED", // Purple
+    backgroundColor: "#2b7fff", // Blue
     padding: 15,
     borderRadius: 50,
     alignItems: "center",
