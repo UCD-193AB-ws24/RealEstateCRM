@@ -11,7 +11,7 @@ export default function LoginScreen({ navigation }) {
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: "677796464036-5fg8dpn3od8rtrgr36cmo0ne04us4g2l.apps.googleusercontent.com",
-    clientId: "677796464036-lcia79vgc4akv50inc89tr86mg06e7un.apps.googleusercontent.com",
+    clientId: "633200936973-9nad9lk5vtb1ao69cs51iomkss8ae1e5.apps.googleusercontent.com",
     scopes: [
       "openid",
       "profile",

@@ -1,20 +1,52 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TextInput,
+  Modal,
+  Image,
+} from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Markdown from 'react-native-markdown-display';
 
 const baseUrl = "http://34.31.159.135:5002/api/stats";
+const chatbotUrl = "http://10.0.2.2:5001/api/chat";
+
+interface ChatMessage {
+  question: string;
+  answer: string;
+}
 
 const HomeScreen = (route) => {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
+  const [stats, setStats] = useState(null);
   const lastAppliedRef = useRef(null);
 
-  const [stats, setStats] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+
+  const fetchStats = async (userId) => {
+    try {
+      const response = await axios.get(`${baseUrl}/${userId}`);
+      const data = response.data;
+      setStats(data);
+      await AsyncStorage.setItem("cachedStats", JSON.stringify(data));
+    } catch (error) {
+      Alert.alert("Error", "Failed to fetch stats from the backend");
+      console.error("Error fetching stats:", error);
+    }
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -24,30 +56,17 @@ const HomeScreen = (route) => {
     loadUser();
   }, []);
 
-  const fetchStats = async (userId) => {
-    try {
-      const response = await axios.get(`${baseUrl}/${userId}`);
-      const data = response.data;
-      setStats(data);
-      await AsyncStorage.setItem("cachedStats", JSON.stringify(data)); // 🆕
-    } catch (error) {
-      Alert.alert("Error", "Failed to fetch stats from the backend");
-      console.error("Error fetching stats:", error);
-    }
-  };
-  
-
   useFocusEffect(
     useCallback(() => {
       const loadStats = async () => {
         const storedUser = await SecureStore.getItemAsync("user");
         if (!storedUser) return;
-  
+
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-  
+
         const routeParams = route?.params;
-  
+
         if (routeParams?.optimisticStats) {
           const cached = await AsyncStorage.getItem("cachedStats");
           const existingStats = cached ? JSON.parse(cached) : {};
@@ -65,23 +84,38 @@ const HomeScreen = (route) => {
           navigation.setParams({ optimisticStats: null }); // clear
           return;
         }
-  
+
         const cachedStats = await AsyncStorage.getItem("cachedStats");
         if (cachedStats) {
           setStats(JSON.parse(cachedStats));
         }
       };
-  
+
       loadStats();
     }, [route.params])
   );
-  
-  
-  
-  
-  
-  
-  
+
+  const handleAskGemini = async () => {
+    if (!question.trim()) return;
+
+    try {
+      console.log("Sending question to Gemini:", question);
+      const response = await axios.post(chatbotUrl, { question: question });
+      console.log("Received response:", response.data);
+      
+      // Add new message pair to chat history
+      setChatHistory(prevHistory => [...prevHistory, {
+        question: question,
+        answer: response.data.response || "No response received."
+      }]);
+      
+      // Clear input
+      setQuestion("");
+    } catch (err) {
+      console.error("Error details:", err.response?.data || err.message);
+      Alert.alert("Error", err.response?.data?.error || "Failed to get response from Gemini.");
+    }
+  };
 
   const StatCard = ({ label, value, iconName, bgColor, iconColor }) => (
     <View style={styles.statCard}>
@@ -105,58 +139,21 @@ const HomeScreen = (route) => {
       </SafeAreaView>
     );
   }
-  
-  // ✅ Now safe to use stats.totalLeads
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {user && <Text style={styles.welcomeText}>Hello, {user.given_name}</Text>}
-  
+
         <View style={styles.grid}>
-          <StatCard
-            label="Total Leads"
-            value={stats.totalLeads}
-            iconName="target-outline"
-            bgColor="#EDE9FE"
-            iconColor="#7C3AED"
-          />
-          <StatCard
-            label="Deals Closed"
-            value={stats.dealsClosed}
-            iconName="hand-left-outline"
-            bgColor="#E0E7FF"
-            iconColor="#4F46E5"
-          />
-          <StatCard
-            label="Properties Contacted"
-            value={stats.propertiesContacted}
-            iconName="call-outline"
-            bgColor="#E0F2FE"
-            iconColor="#0284C7"
-          />
-          <StatCard
-            label="Offers Made"
-            value={stats.offersMade}
-            iconName="business-outline"
-            bgColor="#FEF3C7"
-            iconColor="#D97706"
-          />
-          <StatCard
-            label="Active Listings"
-            value={stats.activeListings}
-            iconName="home-outline"
-            bgColor="#D1FAE5"
-            iconColor="#059669"
-          />
-          <StatCard
-            label="% Deals Closed"
-            value={stats.percentageDealsClosed}
-            iconName="stats-chart-outline"
-            bgColor="#FFE4E6"
-            iconColor="#E11D48"
-          />
+          <StatCard label="Total Leads" value={stats.totalLeads} iconName="target-outline" bgColor="#EDE9FE" iconColor="#7C3AED" />
+          <StatCard label="Deals Closed" value={stats.dealsClosed} iconName="hand-left-outline" bgColor="#E0E7FF" iconColor="#4F46E5" />
+          <StatCard label="Properties Contacted" value={stats.propertiesContacted} iconName="call-outline" bgColor="#E0F2FE" iconColor="#0284C7" />
+          <StatCard label="Offers Made" value={stats.offersMade} iconName="business-outline" bgColor="#FEF3C7" iconColor="#D97706" />
+          <StatCard label="Active Listings" value={stats.activeListings} iconName="home-outline" bgColor="#D1FAE5" iconColor="#059669" />
+          <StatCard label="% Deals Closed" value={stats.percentageDealsClosed} iconName="stats-chart-outline" bgColor="#FFE4E6" iconColor="#E11D48" />
         </View>
-  
+
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => navigation.navigate("AddProperty")}
@@ -165,9 +162,72 @@ const HomeScreen = (route) => {
           <Text style={styles.buttonText}>Add an Address</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Floating Gemini Button */}
+      <TouchableOpacity
+        style={styles.geminiButton}
+        onPress={() => setShowModal(true)}
+      >
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../assets/images/gemini_logo.png')} 
+            style={styles.geminiLogo}
+          />
+        </View>
+      </TouchableOpacity>
+
+      <Modal
+        visible={showModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ask Gemini</Text>
+            
+            <ScrollView style={styles.chatContainer}>
+              {chatHistory.map((chat, index) => (
+                <View key={index}>
+                  <View style={styles.userMessage}>
+                    <Text style={styles.userMessageText}>{chat.question}</Text>
+                  </View>
+                  <View style={styles.botMessage}>
+                    <Markdown style={markdownStyles}>
+                      {chat.answer}
+                    </Markdown>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Type your question here"
+                value={question}
+                onChangeText={setQuestion}
+                multiline
+              />
+              <TouchableOpacity 
+                style={styles.modalButton} 
+                onPress={handleAskGemini}
+              >
+                <Text style={styles.modalButtonText}>Ask</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={() => setShowModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
-  
 };
 
 const styles = StyleSheet.create({
@@ -183,7 +243,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 24,
     textAlign: "center",
-    color: "#1F2937", // slate-900
+    color: "#1F2937",
   },
   grid: {
     flexDirection: "row",
@@ -225,14 +285,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1F2937", // slate-900
-  },
-  iconWrapper: {
-    height: 32,
-    width: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    color: "#1F2937",
   },
   iconCircle: {
     height: 28,
@@ -243,14 +296,184 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#E5E7EB", // gray-200
+    backgroundColor: "#E5E7EB",
     marginVertical: 12,
   },
   cardValue: {
     fontSize: 22,
     fontWeight: "bold",
     color: "#000000",
-  },  
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    height: "80%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    position: 'relative',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: 'center',
+    color: "#1F2937",
+  },
+  chatContainer: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  userMessage: {
+    backgroundColor: "#7C3AED",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    maxWidth: '80%',
+    alignSelf: 'flex-end',
+  },
+  botMessage: {
+    backgroundColor: "#F3F4F6",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    maxWidth: '80%',
+    alignSelf: 'flex-start',
+  },
+  messageText: {
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  userMessageText: {
+    fontSize: 14,
+    color: "#FFFFFF",
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  input: {
+    flex: 1,
+    height: 40,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginRight: 8,
+    backgroundColor: "#F9FAFB",
+  },
+  modalButton: {
+    backgroundColor: "#7C3AED",
+    padding: 10,
+    borderRadius: 20,
+    width: 60,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  closeButton: {
+    alignSelf: 'center',
+  },
+  closeButtonText: {
+    color: "#7C3AED",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  geminiButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  logoContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  geminiLogo: {
+    width: '80%',
+    height: '80%',
+    resizeMode: 'contain',
+  },
 });
+
+const markdownStyles = {
+  body: {
+    color: "#1F2937",
+    fontSize: 14,
+  },
+  heading1: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginVertical: 8,
+    color: "#1F2937",
+  },
+  heading2: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 8,
+    color: "#1F2937",
+  },
+  strong: {
+    fontWeight: 'bold',
+    color: "#1F2937",
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  link: {
+    color: "#7C3AED",
+    textDecorationLine: 'underline',
+  },
+  list_item: {
+    marginVertical: 4,
+  },
+  bullet_list: {
+    marginVertical: 8,
+  },
+  ordered_list: {
+    marginVertical: 8,
+  },
+  code_inline: {
+    fontFamily: 'monospace',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  code_block: {
+    fontFamily: 'monospace',
+    backgroundColor: '#F3F4F6',
+    padding: 8,
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+};
 
 export default HomeScreen;
