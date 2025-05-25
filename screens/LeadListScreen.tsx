@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1D5DB",
   },
   activeDot: {
-    backgroundColor: "#2b7fff",
+    backgroundColor: "#7C3AED",
   },
   counter: {
     position: "absolute",
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
   },  
   searchIcon: {
     marginRight: 8,
-    color: "#2b7fff",
+    color: "#7C3AED",
   },
   searchInput: {
     flex: 1,
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   button: {
-    backgroundColor: "#2b7fff",
+    backgroundColor: "#7C3AED",
     borderRadius: 8,
     flex: 1,
     height: 40,
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   filterButton: {
-    backgroundColor: "#2b7fff",
+    backgroundColor: "#7C3AED",
     borderRadius: 8,
     flex: 1,
     marginHorizontal: 5,
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
   },
   
   resetButton: {
-    backgroundColor: "#2b7fff",
+    backgroundColor: "#7C3AED",
     borderRadius: 8,
     height: 40,
     paddingHorizontal: 16,

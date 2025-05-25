@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   deleteButton: {
-    backgroundColor: "#2b7fff", // Blue button
+    backgroundColor: "#7C3AED",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   saveButton: {
-    backgroundColor: "#2b7fff",
+    backgroundColor: "#7C3AED",
     marginTop: 10,
   },
   removeButton: {
@@ -497,14 +497,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   actionButton: {
-    backgroundColor: "#2b7fff", // Blue button
+    backgroundColor: "#7C3AED",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 20,
   },
   editButton: {
-    backgroundColor: "#2b7fff",
+    backgroundColor: "#7C3AED",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
