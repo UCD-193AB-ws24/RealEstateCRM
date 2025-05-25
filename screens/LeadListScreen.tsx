@@ -497,7 +497,7 @@ const openActionsMenu = () => {
             value={isMapView}
             onValueChange={() => setIsMapView(!isMapView)}
             trackColor={{ false: "#D1D5DB", true: "#C4B5FD" }} // light violet track
-            thumbColor={isMapView ? "#7C3AED" : "#f4f3f4"}     // deep violet thumb
+            thumbColor={isMapView ? "#2b7fff" : "#f4f3f4"}     // blue thumb
           />
 
         </View>
@@ -607,7 +607,7 @@ const openActionsMenu = () => {
     onEndReached={handleLoadMoreLocal}
     onEndReachedThreshold={0.6}
     ListFooterComponent={loading && hasMore ? (
-      <Text style={{ textAlign: "center", padding: 10, color: "#7C3AED" }}>Loading leads...</Text>
+      <Text style={{ textAlign: "center", padding: 10, color: "#2b7fff" }}>Loading leads...</Text>
     ) : null}
   />
           </ScrollView>

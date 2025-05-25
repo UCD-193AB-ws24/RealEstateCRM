@@ -146,7 +146,7 @@ const HomeScreen = (route) => {
         {user && <Text style={styles.welcomeText}>Hello, {user.given_name}</Text>}
 
         <View style={styles.grid}>
-          <StatCard label="Total Leads" value={stats.totalLeads} iconName="target-outline" bgColor="#EDE9FE" iconColor="#7C3AED" />
+          <StatCard label="Total Leads" value={stats.totalLeads} iconName="target-outline" bgColor="#E6F0FF" iconColor="#7C3AED" />
           <StatCard label="Deals Closed" value={stats.dealsClosed} iconName="hand-left-outline" bgColor="#E0E7FF" iconColor="#4F46E5" />
           <StatCard label="Properties Contacted" value={stats.propertiesContacted} iconName="call-outline" bgColor="#E0F2FE" iconColor="#0284C7" />
           <StatCard label="Offers Made" value={stats.offersMade} iconName="business-outline" bgColor="#FEF3C7" iconColor="#D97706" />

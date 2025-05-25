@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
 loadingText: {
   marginTop: 10,
   fontSize: 16,
-  color: "#6B7280",
+  color: "#7C3AED",
 },
 pickerContainer: {
   borderWidth: 1,

@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   deleteButton: {
-    backgroundColor: "#7C3AED", // Deep violet button
+    backgroundColor: "#7C3AED",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
@@ -495,5 +495,19 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontSize: 14,
     marginTop: 8,
+  },
+  actionButton: {
+    backgroundColor: "#7C3AED",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  editButton: {
+    backgroundColor: "#7C3AED",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
   },
 });
